@@ -1,0 +1,7 @@
+{
+	"input_data_types": "int32",
+	 "retraining": "none",
+	 "starting_weights_filename": "https://github.com/mlcommons/mobile_models/blob/main/v0_7/tflite/mobilebert_int8_384_nnapi.tflite",
+	 "weight_data_types": "int8",
+	 "weight_transformations": "none"
+ }

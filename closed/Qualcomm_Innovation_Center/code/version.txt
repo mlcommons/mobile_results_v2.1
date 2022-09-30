@@ -1,0 +1,23 @@
+# Build mlperf_app.apk with QTI backend support
+git clone https://github.com/mlcommons/mobile_app_open
+cd mobile_app_open
+git checkout 22d6252261352d68824f08c982ce49ff03dafcc8
+patch -p1 < ../qti_submission.patch
+# copy the snpe sdk snpe-1.65.0.3676 to mobile_back_qti
+make WITH_QTI=1 docker/flutter/android/apk
+
+# Push app to device
+adb install output/flutter/android/release.apk
+# run the app once to create the cache folder
+
+#merge the split DLCs back to make original dlc
+cd ../mlperf_models/mobilebert
+cat mobilebert_quantized_htp.dlc_a? > ../mobilebert_quantized_htp.dlc
+
+# Push the models to the device cache folder
+adb push ../mlperf_models /sdcard/Android/data/org.mlcommons.android.mlperfbench/files/
+
+# Push the datatsets to the device
+adb push mlperf_datasets /sdcard/Android/data/org.mlcommons.android.mlperfbench/files/mlperf_datatsets
+
+# Now you can launch the app, select submission mode and press GO

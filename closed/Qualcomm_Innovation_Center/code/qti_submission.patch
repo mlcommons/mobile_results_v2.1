@@ -1,0 +1,2165 @@
+diff --git a/Makefile b/Makefile
+index 488b358..a3d69f4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -29,7 +29,6 @@ include tools/formatter/format.mk
+ include mobile_back_tflite/tflite_backend.mk
+ include mobile_back_samsung/samsung_backend.mk
+ include mobile_back_qti/make/qti_backend.mk
+-include mobile_back_qti/make/qti_backend_targets.mk
+ include mobile_back_pixel/pixel_backend.mk
+ 
+ include flutter/flutter.mk
+diff --git a/flutter/cpp/c/type.h b/flutter/cpp/c/type.h
+index 5b45d9f..5bfb999 100644
+--- a/flutter/cpp/c/type.h
++++ b/flutter/cpp/c/type.h
+@@ -47,6 +47,7 @@ typedef struct {
+ const int kMaxMLPerfBackendConfigs = 256;
+ typedef struct {
+   const char* accelerator;
++  const char* accelerator_desc;
+   uint32_t batch_size;
+   int count = 0;
+   const char* keys[kMaxMLPerfBackendConfigs];
+diff --git a/flutter/cpp/utils.cc b/flutter/cpp/utils.cc
+index 7f66410..1726a5e 100644
+--- a/flutter/cpp/utils.cc
++++ b/flutter/cpp/utils.cc
+@@ -91,6 +91,7 @@ bool AddBackendConfiguration(mlperf_backend_configuration_t *configs,
+ 
+ void DeleteBackendConfiguration(mlperf_backend_configuration_t *configs) {
+   delete configs->accelerator;
++  delete configs->accelerator_desc;
+   for (int i = 0; i < configs->count; ++i) {
+     delete configs->keys[i];
+     delete configs->values[i];
+@@ -105,6 +106,10 @@ mlperf_backend_configuration_t CppToCSettings(const SettingList &settings) {
+   strcpy(accelerator, settings.benchmark_setting().accelerator().c_str());
+   c_settings.accelerator = accelerator;
+   c_settings.batch_size = settings.benchmark_setting().batch_size();
++  char *accelerator_desc =
++      new char[settings.benchmark_setting().accelerator_desc().length() + 1];
++  strcpy(accelerator_desc, settings.benchmark_setting().accelerator_desc().c_str());
++  c_settings.accelerator_desc = accelerator_desc;
+ 
+   // Add common settings
+   for (Setting s : settings.setting()) {
+diff --git a/mobile_back_qti/BUILD b/mobile_back_qti/BUILD
+index c8414d1..2594697 100644
+--- a/mobile_back_qti/BUILD
++++ b/mobile_back_qti/BUILD
+@@ -1,4 +1,4 @@
+-# Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++# Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -44,13 +44,11 @@ cc_library(
+     srcs = [
+         SNPE_VERSION + "/lib/aarch64-android-clang8.0/libhta.so",
+         SNPE_VERSION + "/lib/aarch64-android-clang8.0/libsnpe_dsp_domains_v2.so",
+-        SNPE_VERSION + "/lib/aarch64-android-clang8.0/libsnpe_dsp_domains_v3.so",
+         SNPE_VERSION + "/lib/aarch64-android-clang8.0/libSnpeHtpV69Stub.so",
+         SNPE_VERSION + "/lib/aarch64-android-clang8.0/libSnpeHtpV68Stub.so",
+         SNPE_VERSION + "/lib/aarch64-android-clang8.0/libSNPE.so",
+         SNPE_VERSION + "/lib/aarch64-android-clang8.0/libSnpeHtpPrepare.so",
+         SNPE_VERSION + "/lib/dsp/libsnpe_dsp_v66_domains_v2_skel.so",
+-        SNPE_VERSION + "/lib/dsp/libsnpe_dsp_v68_domains_v3_skel.so",
+         SNPE_VERSION + "/lib/dsp/libSnpeHtpV69Skel.so",
+         SNPE_VERSION + "/lib/dsp/libSnpeHtpV68Skel.so",
+     ],
+diff --git a/mobile_back_qti/DLC/Makefile b/mobile_back_qti/DLC/Makefile
+index 9488d63..dec0932 100644
+--- a/mobile_back_qti/DLC/Makefile
++++ b/mobile_back_qti/DLC/Makefile
+@@ -1,4 +1,4 @@
+-# Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++# Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -33,7 +33,6 @@ ${DATASETS_OUT}/state/calibration.stamp:
+ DLCBUILDDIR=${BUILDDIR}/DLC
+ MODEL_BASE_PATH=${DLCBUILDDIR}/mobile
+ MOBILENETEDGETPU_MODEL_PATH=${MODEL_BASE_PATH}/vision/mobilenet/models_and_code/checkpoints/float
+-DEEPLABV3QAT_MODEL_PATH=${MODEL_BASE_PATH}/vision/deeplab/models_and_code/checkpoints/quantize_aware_training
+ MOBILEBERT_MODEL_PATH=${MODEL_BASE_PATH}/language/bert/models_and_code/checkpoints/quant/
+ MOBILEMOSAIC_MODEL_PATH=${MODEL_BASE_PATH}/vision/mosaic/models_and_checkpoints/R4/
+ 
+@@ -52,15 +51,19 @@ ${DLCBUILDDIR}/mlperf_mosaic_docker.stamp:
+ hta-dlc: ${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_hta.stamp \
+ 	${DLCBUILDDIR}/ssd_mobiledet_qat_hta.stamp \
+ 	${DLCBUILDDIR}/mobile_mosaic_hta.stamp \
+-	${DLCBUILDDIR}/deeplabv3_hta.stamp
+ 
+ htp-dlc: ${DLCBUILDDIR}/mobilebert_htp.stamp \
+ 	${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp.stamp \
+ 	${DLCBUILDDIR}/ssd_mobiledet_qat_htp.stamp \
+-	${DLCBUILDDIR}/deeplabv3_htp.stamp \
+ 	${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched.stamp \
++	${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched_sd7g1.stamp \
++	${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched_sd8pg1.stamp \
+ 	${DLCBUILDDIR}/mobile_mosaic_htp.stamp \
+-	${DLCBUILDDIR}/deeplabv3_float.dlc
++
++mobilenet_edgetpu_batched: \
++	${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched.stamp \
++    ${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched_sd7g1.stamp \
++   	${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched_sd8pg1.stamp
+ 
+ mosaic: \
+ 	${DLCBUILDDIR}/mobile_mosaic_htp.stamp \
+@@ -74,14 +77,9 @@ mobiledet: \
+ 	${DLCBUILDDIR}/ssd_mobiledet_qat_hta.stamp \
+ 	${DLCBUILDDIR}/ssd_mobiledet_qat_htp.stamp
+ 
+-deeplabv3: \
+-	${DLCBUILDDIR}/deeplabv3_htp.stamp \
+-	${DLCBUILDDIR}/deeplabv3_hta.stamp
+-
+ mobilebert: \
+ 	${DLCBUILDDIR}/mobilebert_htp.stamp
+ 
+-deeplab_float: ${DLCBUILDDIR}/deeplabv3_float.dlc
+ 
+ ${BUILDDIR}/datasets.stamp:
+ 	(cd ../datasets && make)
+@@ -199,7 +197,89 @@ ${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched.stamp: \
+ 			--htp_socs sm8350,sm7325,sm8450
+ 	# Mobilenetedge TPU model conversion completed
+ 	touch $@
+-	
++
++${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_float_batched_sd7g1.dlc: \
++		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
++		${DLCBUILDDIR}/mobile/.stamp
++	# Mobilenetedge TPU model conversion ....
++	# Batched Float model
++	mkdir -p ${DLCBUILDDIR}
++	docker run \
++		-e PYTHONPATH=/snpe_sdk/lib/python \
++		-v ${SNPE_SDK}:/snpe_sdk \
++		-v ${MOBILENETEDGETPU_MODEL_PATH}:/models \
++		-v ${DLCBUILDDIR}:/output \
++		-u ${USERID}:${GROUPID} \
++		mlperf_mobile:1.1 \
++		/snpe_sdk/bin/x86_64-linux-clang/snpe-tensorflow-to-dlc \
++			-i /models/frozen_graph_tf1x_transform.pb \
++			-d input "4,224,224,3" --out_node "MobilenetEdgeTPU/Predictions/Softmax" \
++			-o /output/mobilenet_edgetpu_224_1.0_float_batched_sd7g1.dlc
++
++${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched_sd7g1.stamp: \
++		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
++		${DLCBUILDDIR}/imagenet/imagenet_image_list.txt \
++		${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_float_batched_sd7g1.dlc
++	# Quantization of MobilenetEdgeTPU Batched DLC for HTP
++	docker run \
++		-e PYTHONPATH=/snpe_sdk/lib/python \
++		-e LD_LIBRARY_PATH=/snpe_sdk/lib/x86_64-linux-clang \
++		-v ${SNPE_SDK}:/snpe_sdk \
++		-v ${DLCBUILDDIR}:/output \
++		-v ${DLCBUILDDIR}/imagenet:/imagenet-out \
++		-w /imagenet-out \
++		-u ${USERID}:${GROUPID} \
++		mlperf_mobile:1.1 \
++		/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-quantize \
++			--input_dlc=/output/mobilenet_edgetpu_224_1.0_float_batched_sd7g1.dlc \
++			--input_list=imagenet_image_list.txt \
++			--output_dlc=/output/mobilenet_edgetpu_224_1.0_htp_batched_sd7g1.dlc \
++			--enable_htp \
++			--htp_socs sm7450
++	# Mobilenetedge TPU model conversion completed
++	touch $@
++
++${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_float_batched_sd8pg1.dlc: \
++		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
++		${DLCBUILDDIR}/mobile/.stamp
++	# Mobilenetedge TPU model conversion ....
++	# Batched Float model
++	mkdir -p ${DLCBUILDDIR}
++	docker run \
++		-e PYTHONPATH=/snpe_sdk/lib/python \
++		-v ${SNPE_SDK}:/snpe_sdk \
++		-v ${MOBILENETEDGETPU_MODEL_PATH}:/models \
++		-v ${DLCBUILDDIR}:/output \
++		-u ${USERID}:${GROUPID} \
++		mlperf_mobile:1.1 \
++		/snpe_sdk/bin/x86_64-linux-clang/snpe-tensorflow-to-dlc \
++			-i /models/frozen_graph_tf1x_transform.pb \
++			-d input "4,224,224,3" --out_node "MobilenetEdgeTPU/Predictions/Softmax" \
++			-o /output/mobilenet_edgetpu_224_1.0_float_batched_sd8pg1.dlc
++
++${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_htp_batched_sd8pg1.stamp: \
++		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
++		${DLCBUILDDIR}/imagenet/imagenet_image_list.txt \
++		${DLCBUILDDIR}/mobilenet_edgetpu_224_1.0_float_batched_sd8pg1.dlc
++	# Quantization of MobilenetEdgeTPU Batched DLC for HTP
++	docker run \
++		-e PYTHONPATH=/snpe_sdk/lib/python \
++		-e LD_LIBRARY_PATH=/snpe_sdk/lib/x86_64-linux-clang \
++		-v ${SNPE_SDK}:/snpe_sdk \
++		-v ${DLCBUILDDIR}:/output \
++		-v ${DLCBUILDDIR}/imagenet:/imagenet-out \
++		-w /imagenet-out \
++		-u ${USERID}:${GROUPID} \
++		mlperf_mobile:1.1 \
++		/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-quantize \
++			--input_dlc=/output/mobilenet_edgetpu_224_1.0_float_batched_sd8pg1.dlc \
++			--input_list=imagenet_image_list.txt \
++			--output_dlc=/output/mobilenet_edgetpu_224_1.0_htp_batched_sd8pg1.dlc \
++			--enable_htp \
++			--htp_socs sm8475
++	# Mobilenetedge TPU model conversion completed
++	touch $@
++
+ ${DLCBUILDDIR}/ssd_mobiledet_qat.dlc: \
+ 		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
+ 		${DLCBUILDDIR}/mobile/.stamp
+@@ -270,79 +350,10 @@ ${DLCBUILDDIR}/ssd_mobiledet_qat_htp.stamp: \
+ 	# SSD MobileDET model conversion for HTP completed
+ 	touch $@
+ 
+-${DLCBUILDDIR}/deeplabv3_float.dlc: \
+-		${DLCBUILDDIR}/mobile/.stamp ${DEEPLABV3QAT_MODEL_PATH}/freeze.pb \
+-		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp
+-	@echo "Deeplab v3 model conversion ...."
+-	@echo "Deeplabv3 model"
+-	@mkdir -p ${DLCBUILDDIR}
+-	@docker run \
+-		-e PYTHONPATH=/snpe_sdk/lib/python \
+-		-v ${SNPE_SDK}:/snpe_sdk \
+-		-v ${DEEPLABV3QAT_MODEL_PATH}:/deeplabv3 \
+-		-v ${DLCBUILDDIR}:/output \
+-		-v ${TOPDIR}/DLC:/dlc \
+-		-u ${USERID}:${GROUPID} \
+-		mlperf_mobile:1.1 \
+-		/bin/bash -c '/snpe_sdk/bin/x86_64-linux-clang/snpe-tensorflow-to-dlc \
+-		-i /deeplabv3/freeze.pb \
+-		-d ImageTensor "1,512,512,3" \
+-		--out_node ArgMax \
+-		-o /output/deeplabv3_float.dlc'
+-	@echo "Generated DLC from Deeplabv3 model"
+-
+ ${DLCBUILDDIR}/ade20k/ade20k_image_list.txt: ${DLCBUILDDIR}/ade20k/state/quantdata.stamp
+ 	mkdir -p ${DLCBUILDDIR}/ade20k
+ 	cat ${TOPDIR}/datasets/util/ade20k/ade20k_calibration_files.txt | sed "s!^!/ade20k/quantdata/!" | sed "s!jpg!raw!" > $@
+ 
+-${DLCBUILDDIR}/deeplabv3_hta.stamp: \
+-		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
+-		${DLCBUILDDIR}/ade20k/ade20k_image_list.txt \
+-		${DLCBUILDDIR}/deeplabv3_float.dlc
+-	# Quantization of Deeplabv3 DLC
+-	docker run \
+-		-e PYTHONPATH=/snpe_sdk/lib/python \
+-		-e LD_LIBRARY_PATH=/snpe_sdk/lib/x86_64-linux-clang \
+-		-v ${SNPE_SDK}:/snpe_sdk \
+-		-v ${DLCBUILDDIR}:/output \
+-		-v ${DLCBUILDDIR}/ade20k:/ade20k \
+-		-w /ade20k \
+-		-u ${USERID}:${GROUPID} \
+-		mlperf_mobile:1.1 \
+-		/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-quantize \
+-			--input_dlc=/output/deeplabv3_float.dlc \
+-			--input_list=ade20k_image_list.txt \
+-			--use_encoding_optimizations \
+-			--output_dlc=/output/deeplabv3_hta.dlc \
+-			--enable_hta
+-	# Deeplab v3 model conversion completed
+-	@# Can't use deeplabv3_hta.dlc as make target since this file is present on failure
+-	touch $@
+-
+-${DLCBUILDDIR}/deeplabv3_htp.stamp: \
+-		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
+-		${DLCBUILDDIR}/ade20k/ade20k_image_list.txt \
+-		${DLCBUILDDIR}/deeplabv3_float.dlc
+-	# Quantization of Deeplabv3 DLC
+-	docker run \
+-		-e PYTHONPATH=/snpe_sdk/lib/python \
+-		-e LD_LIBRARY_PATH=/snpe_sdk/lib/x86_64-linux-clang \
+-		-v ${SNPE_SDK}:/snpe_sdk \
+-		-v ${DLCBUILDDIR}:/output \
+-		-v ${DLCBUILDDIR}/ade20k:/ade20k \
+-		-w /ade20k \
+-		-u ${USERID}:${GROUPID} \
+-		mlperf_mobile:1.1 \
+-		/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-quantize \
+-			--input_dlc=/output/deeplabv3_float.dlc \
+-			--input_list=ade20k_image_list.txt \
+-			--output_dlc=/output/deeplabv3_htp.dlc \
+-			--use_encoding_optimizations \
+-			--enable_htp \
+-			--htp_socs sm8350,sm7325,sm8450
+-	# Deeplab v3 model conversion completed
+-	touch $@
+-
+ ${DLCBUILDDIR}/mobilebert_quant.pb: \
+ 		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
+ 		${DLCBUILDDIR}/mobile/.stamp
+@@ -378,6 +389,7 @@ ${DLCBUILDDIR}/mobilebert_float.dlc: \
+ 		-v ${DLCDIR}:/dlc \
+ 		-v ${MOBILEBERT_MODEL_PATH}:/models \
+ 		-u ${USERID}:${GROUPID} \
++		-w /output \
+ 		mlperf_mobile:1.1 \
+ 		/snpe_sdk/bin/x86_64-linux-clang/snpe-tensorflow-to-dlc \
+ 			--input_network /output/mobilebert_quant.pb \
+@@ -615,8 +627,7 @@ gen-hta-dlc-info: \
+ 		/bin/bash -c '\
+ 			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobilenet_edgetpu_224_1.0_hta.dlc && \
+ 			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/ssd_mobiledet_qat_htp.dlc && \
+-			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobile_mosaic_hta.dlc' && \
+-			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/deeplabv3_hta.dlc'
++			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobile_mosaic_hta.dlc'
+ 
+ gen-htp-dlc-info: \
+ 		${DLCBUILDDIR}/mlperf_mobile_docker_1_1.stamp \
+@@ -631,9 +642,10 @@ gen-htp-dlc-info: \
+ 		/bin/bash -c '\
+ 			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobilenet_edgetpu_224_1.0_htp.dlc && \
+ 			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/ssd_mobiledet_qat_htp.dlc && \
+-			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/deeplabv3_htp.dlc && \
+ 			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobilenet_edgetpu_224_1.0_htp_batched.dlc && \
+-			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobile_mosaic_htp.dlc' && \
++			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobilenet_edgetpu_224_1.0_htp_batched_sd7g1.stamp && \
++            /snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobilenet_edgetpu_224_1.0_htp_batched_sd8pg1.stamp && \
++			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobile_mosaic_htp.dlc && \
+ 			/snpe_sdk/bin/x86_64-linux-clang/snpe-dlc-info -i /dlc/mobilebert_quantized_htp.dlc'
+ 
+ ####################################################################################
+diff --git a/mobile_back_qti/README.md b/mobile_back_qti/README.md
+index b745313..f3a7a4b 100644
+--- a/mobile_back_qti/README.md
++++ b/mobile_back_qti/README.md
+@@ -12,16 +12,16 @@ uploaded with the other submission files to here: `<path where needs to be uploa
+ ## Requirements
+ 
+ <!-- markdown-link-check-disable-next-line -->
+-* [SNPE SDK](https://createpoint.qti.qualcomm.com/tools/#suite/9186/64383)
+-  * Version 1.59.1 (Needs special access to the above link. POC: wchou@qti.qualcomm.com)
++* [SNPE SDK](https://developer.qualcomm.com/downloads/qualcomm-neural-processing-sdk-ai-v1650)
++  * Version 1.65.0
+ * Linux machine capable of running Ubuntu 18.04 docker images
+ 
+ After downloading and unzipping the SNPE SDK, make sure to set SNPE_SDK to its location:
+ 
+ ```shell
+ cd /opt
+-unzip snpe-1.59.1.3230.zip
+-export SNPE_SDK=/opt/snpe-1.59.1.3230
++unzip snpe-1.65.0_rc2_3676.zip
++export SNPE_SDK=/opt/snpe-1.65.0.3676
+ ```
+ 
+ ### Optional
+@@ -60,20 +60,11 @@ Clone mlperf_app_open and build with the following build commands.
+ ```shell
+ git clone https://github.com/mlcommons/mobile_app_open
+ cd mobile_app_open
+-make WITH_QTI=1 android/app
++make WITH_QTI=1 docker/flutter/android/apk
+ ```
+ 
+ This will build the QTI backend into the MLPerf app.
+ 
+-## Building the QTI backend lib
+-
+-To build only the QTI backend:
+-
+-```shell
+-git clone https://github.com/mlcommons/mobile_app_open
+-make WITH_QTI=1 libqtibackend
+-```
+-
+ ## Backend Specific Task Config file
+ 
+ The task config settings are embedded in libqtibackend.so. These settings contain the
+@@ -91,10 +82,10 @@ No, the information to build the DLC files is only to show how they are created.
+ 
+ ### What devices does this backend support?
+ 
+-This backend only supports SDM865/SDM865 Pro ,SDM888/SDM888 Pro, SDM778G, SD8G1 devices. Other Snapdragon
+-based devices will not run the MLPerf app. Future updates of the app will provide
++This backend only supports SDM865/SDM865 Pro ,SDM888/SDM888 Pro, SDM778G, SD7G1, SD8G1, SD8Pro G1 devices.
++Other Snapdragon based devices will not run the MLPerf app. Future updates of the app will provide
+ additional device support.
+ 
+ ### Is SNPE used to run all the models?
+ 
+-Yes. All the models use SNPE for execution.
++Yes. All the models use SNPE for execution for current version.
+diff --git a/mobile_back_qti/cpp/backend_mock_qti/BUILD b/mobile_back_qti/cpp/backend_mock_qti/BUILD
+index a098228..1c52ab0 100644
+--- a/mobile_back_qti/cpp/backend_mock_qti/BUILD
++++ b/mobile_back_qti/cpp/backend_mock_qti/BUILD
+@@ -1,4 +1,4 @@
+-# Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++# Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/cpp/backend_mock_qti/qti_mock_c.cc b/mobile_back_qti/cpp/backend_mock_qti/qti_mock_c.cc
+index 9e95d83..8eed80a 100644
+--- a/mobile_back_qti/cpp/backend_mock_qti/qti_mock_c.cc
++++ b/mobile_back_qti/cpp/backend_mock_qti/qti_mock_c.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/cpp/backend_qti/BUILD b/mobile_back_qti/cpp/backend_qti/BUILD
+index e6fea78..278f9c2 100644
+--- a/mobile_back_qti/cpp/backend_qti/BUILD
++++ b/mobile_back_qti/cpp/backend_qti/BUILD
+@@ -1,4 +1,4 @@
+-# Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++# Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -22,6 +22,7 @@
+ 
+ load("@snpe_version_loader//:snpe_var_def.bzl", "SNPE_VERSION")
+ load("@org_tensorflow//tensorflow/lite:build_def.bzl", "tflite_copts", "tflite_jni_binary")
++load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+ 
+ package(
+     default_visibility = ["//visibility:public"],
+@@ -33,6 +34,17 @@ config_setting(
+     values = {"cpu": "arm64-v8a"},
+ )
+ 
++string_flag(
++    name = "with_qti",
++    values = ["1","2"],
++    build_setting_default = "1",
++)
++
++config_setting(
++    name = "debug_option",
++    flag_values = {":with_qti": "2"},
++)
++
+ snpe_copts = [
+     "-Imobile_back_qti/" + SNPE_VERSION + "/include/zdl",
+     "-fexceptions",
+@@ -44,7 +56,9 @@ cc_library(
+     srcs = ["rpcmem.cc"],
+     hdrs = [
+         "cpuctrl.h",
++        "soc_utility.h",
+         "rpcmem.h",
++        "qti_settings.h"
+     ],
+     copts = tflite_copts() + snpe_copts,
+     deps = ["@org_tensorflow//tensorflow/core:tflite_portable_logging"],
+@@ -82,6 +96,7 @@ cc_library(
+             "cpuctrl.cc",
+             "tflite_c.cc",
+             "qti_backend_helper.cc",
++            "soc_utility.cc",
+         ],
+     }),
+     hdrs = [] + select({
+@@ -91,10 +106,16 @@ cc_library(
+             "tflite_c.h",
+             "qti_backend_helper.h",
+             "mlperf_helper.h",
++            "soc_utility.h"
+         ],
+     }),
+     copts = tflite_copts() + snpe_copts,
+-    local_defines = ["SNPE_VERSION_STRING=" + SNPE_VERSION],
++    local_defines = ["SNPE_VERSION_STRING=" + SNPE_VERSION,] +
++                    select({
++                       "debug_option":
++                          ["DEBUG_FLAG",],
++                       "//conditions:default": [],
++                    }),
+     deps = [
+         "//flutter/cpp/c:headers",
+         ":qti_allocator",
+diff --git a/mobile_back_qti/cpp/backend_qti/allocator.cc b/mobile_back_qti/cpp/backend_qti/allocator.cc
+index 3c88939..03cf7b6 100644
+--- a/mobile_back_qti/cpp/backend_qti/allocator.cc
++++ b/mobile_back_qti/cpp/backend_qti/allocator.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -35,6 +35,9 @@ void* ChunkAllocator::GetBuffer(size_t n, size_t chunks_per_block) {
+ void ChunkAllocator::ReleaseBuffer(void* p) {
+   Block* block = Block::block_map_[p];
+   getAllocator().at(block->GetChunkSize()).ReleaseChunk(block, p);
++  if (getAllocator().at(block->GetChunkSize()).IsChunkEmpty()) {
++    getAllocator().clear();
++  }
+ }
+ 
+ void* ChunkAllocator::GetBatchPtr(void* p) {
+diff --git a/mobile_back_qti/cpp/backend_qti/allocator.h b/mobile_back_qti/cpp/backend_qti/allocator.h
+index 8b484cd..98f520b 100644
+--- a/mobile_back_qti/cpp/backend_qti/allocator.h
++++ b/mobile_back_qti/cpp/backend_qti/allocator.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -115,6 +115,10 @@ class ChunkAllocator {
+     }
+   }
+ 
++  bool IsChunkEmpty() {
++    return (block_list_.empty());
++  }
++
+   void DumpAllocatorState() {
+     printf("  ChunkSize %lu\n", chunk_size_);
+     printf("  ChunksPerBlock %lu\n", chunks_per_block_);
+@@ -162,27 +166,28 @@ class Allocator {
+ 
+   static void useIonAllocator() {
+     useIonBuffer = true;
+-    LOG(INFO) << "Using Ion Allocator";
++    // LOG(INFO) << "Using Ion Allocator";
+   }
+ 
+   static void useDefaultAllocator() {
+     useIonBuffer = false;
+-    LOG(INFO) << "Using Default Allocator";
++    // LOG(INFO) << "Using Default Allocator";
+   }
+ };
+ 
+ template <class T>
+ bool Allocator<T>::useIonBuffer = true;
+ 
+-static void *get_ion_buffer(size_t n) {
+-  void *p = ChunkAllocator::GetBuffer(n, 3);
+-  // LOG(INFO) << "QTI backend SNPE allocator " << n << " bytes at " << p;
++static void *get_ion_buffer(size_t n,int chunkSize=3) {
++  void *p = ChunkAllocator::GetBuffer(n, chunkSize);
++  // LOG(INFO) << "QTI backend SNPE allocator " << n << " bytes at " << p << " with chunk size: " << chunkSize;
+   return p;
+ }
+ 
+-static void *std_get_buffer(size_t n) {
++static void *std_get_buffer(size_t n, int chunkSize=1) {
++  // chunkSize is always ignored. definition needs to be consistent with get_ion_buffer above
+   void *p = std::malloc(n);
+-  // LOG(INFO) << "QTI backend SDT allocator " << n << " bytes at " << p;
++  // LOG(INFO) << "QTI backend STD allocator " << n << " bytes at " << p;
+   return p;
+ }
+ 
+diff --git a/mobile_back_qti/cpp/backend_qti/allocator_test.cc b/mobile_back_qti/cpp/backend_qti/allocator_test.cc
+index 1c0c5f0..46fa3a5 100644
+--- a/mobile_back_qti/cpp/backend_qti/allocator_test.cc
++++ b/mobile_back_qti/cpp/backend_qti/allocator_test.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/cpp/backend_qti/cpuctrl.cc b/mobile_back_qti/cpp/backend_qti/cpuctrl.cc
+index eacd683..0110435 100644
+--- a/mobile_back_qti/cpp/backend_qti/cpuctrl.cc
++++ b/mobile_back_qti/cpp/backend_qti/cpuctrl.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -14,6 +14,7 @@ limitations under the License.
+ ==============================================================================*/
+ 
+ #include "cpuctrl.h"
++#include "soc_utility.h"
+ 
+ #include <sched.h>
+ #include <sys/types.h>
+@@ -31,8 +32,6 @@ using namespace std::chrono;
+ #define SET_AFFINITY(a, b) sched_setaffinity(gettid(), a, b)
+ #define GET_AFFINITY(a, b) sched_getaffinity(gettid(), a, b)
+ 
+-static uint32_t soc_id_ = 0;
+-
+ static bool active_ = false;
+ static uint32_t loadOffTime_ = 2;
+ static uint32_t loadOnTime_ = 100;
+@@ -82,100 +81,27 @@ void CpuCtrl::normalLatency() { SET_AFFINITY(sizeof(cpu_set_t), &cpusetall_); }
+ 
+ void CpuCtrl::highLatency() { SET_AFFINITY(sizeof(cpu_set_t), &cpusetHigh_); }
+ 
+-bool CpuCtrl::isSnapDragon(const char *manufacturer) {
+-  bool is_qcom = false;
+-
+-  if (strncmp("QUALCOMM", manufacturer, 7) == 0) {
+-    // This is a test device
+-    LOG(INFO) << "QTI test device detected";
+-    is_qcom = true;
+-  } else {
+-    static EGLint const attribute_list[] = {EGL_RED_SIZE,  1, EGL_GREEN_SIZE, 1,
+-                                            EGL_BLUE_SIZE, 1, EGL_NONE};
+-
+-    EGLDisplay display;
+-    EGLConfig config;
+-    EGLContext context;
+-    EGLSurface surface;
+-    EGLint num_config;
+-
+-    /* get an EGL display connection */
+-    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+-    /* initialize the EGL display connection */
+-    eglInitialize(display, NULL, NULL);
+-    /* get an appropriate EGL frame buffer configuration */
+-    eglChooseConfig(display, attribute_list, &config, 1, &num_config);
+-    /* create an EGL rendering context */
+-    context = eglCreateContext(display, config, EGL_NO_CONTEXT, NULL);
+-    /* connect the context to the surface */
+-    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context);
+-
+-    const unsigned char *vendor = glGetString(GL_VENDOR);
+-
+-    if (strcmp("Qualcomm", (const char *)vendor) == 0) {
+-      is_qcom = true;
+-    }
+-
+-    LOG(INFO) << "vendor: " << vendor;
+-  }
+-  return is_qcom;
+-}
+-
+-uint32_t CpuCtrl::getSocId() {
+-  if (soc_id_ == 0) {
+-    std::ifstream in_file;
+-    std::vector<char> line(5);
+-    in_file.open("/sys/devices/soc0/soc_id");
+-    if (in_file.fail()) {
+-      in_file.open("/sys/devices/system/soc/soc0/id");
+-    }
+-    if (in_file.fail()) {
+-      return 0;
+-    }
+-
+-    in_file.read(line.data(), 5);
+-    in_file.close();
+-    soc_id_ = (uint32_t)std::atoi(line.data());
+-
+-    std::vector<uint32_t> allcores;
+-    std::vector<uint32_t> low_latency_cores;
+-    std::vector<uint32_t> high_latency_cores;
++void CpuCtrl::init() {
++    std::vector <uint32_t> allcores;
++    std::vector <uint32_t> low_latency_cores;
++    std::vector <uint32_t> high_latency_cores;
+     int maxcores = 0;
+-    if (soc_id_ == SDM888 || soc_id_ == SDM865 || soc_id_ == SDM778 ||
+-        soc_id_ == SD8G1) {
+-      high_latency_cores.emplace_back(0);
+-      high_latency_cores.emplace_back(1);
+-      high_latency_cores.emplace_back(2);
+-      high_latency_cores.emplace_back(3);
+-      maxcores = 8;
+-    }
+-
+-    if (soc_id_ == SDM888 || soc_id_ == SDM865 || soc_id_ == SDM778 ||
+-        soc_id_ == SD8G1) {
+-      low_latency_cores.emplace_back(4);
+-      low_latency_cores.emplace_back(5);
+-      low_latency_cores.emplace_back(6);
+-      low_latency_cores.emplace_back(7);
+-      maxcores = 8;
+-    }
++    Socs::define_soc(allcores, low_latency_cores, high_latency_cores, maxcores);
+ 
+     for (auto i = 0; i < maxcores; i++) {
+-      allcores.emplace_back(i);
++        allcores.emplace_back(i);
+     }
+ 
+     CPU_ZERO(&cpusetLow_);
+-    for (auto core : low_latency_cores) {
+-      CPU_SET(core, &cpusetLow_);
++    for (auto core: low_latency_cores) {
++        CPU_SET(core, &cpusetLow_);
+     }
+     CPU_ZERO(&cpusetHigh_);
+-    for (auto core : high_latency_cores) {
+-      CPU_SET(core, &cpusetHigh_);
++    for (auto core: high_latency_cores) {
++        CPU_SET(core, &cpusetHigh_);
+     }
+     CPU_ZERO(&cpusetall_);
+-    for (auto core : allcores) {
+-      CPU_SET(core, &cpusetall_);
++    for (auto core: allcores) {
++        CPU_SET(core, &cpusetall_);
+     }
+-  }
+-  LOG(INFO) << "SOC ID is " << soc_id_;
+-  return soc_id_;
+-}
++}
+\ No newline at end of file
+diff --git a/mobile_back_qti/cpp/backend_qti/cpuctrl.h b/mobile_back_qti/cpp/backend_qti/cpuctrl.h
+index 605d944..8ffce9c 100644
+--- a/mobile_back_qti/cpp/backend_qti/cpuctrl.h
++++ b/mobile_back_qti/cpp/backend_qti/cpuctrl.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -18,11 +18,6 @@ limitations under the License.
+ #include <GLES/gl.h>
+ #include <stdint.h>
+ 
+-#define SDM865 356
+-#define SDM888 415
+-#define SDM778 475
+-#define SD8G1 457
+-
+ class CpuCtrl {
+  public:
+   static void startLoad();
+@@ -31,8 +26,7 @@ class CpuCtrl {
+   static void lowLatency();
+   static void normalLatency();
+   static void highLatency();
+-  static uint32_t getSocId();
+-  static bool isSnapDragon(const char *manufacturer);
++  static void init();
+ 
+  private:
+   CpuCtrl() = delete;
+diff --git a/mobile_back_qti/cpp/backend_qti/mlperf_helper.h b/mobile_back_qti/cpp/backend_qti/mlperf_helper.h
+index 9971b3d..19fd73a 100644
+--- a/mobile_back_qti/cpp/backend_qti/mlperf_helper.h
++++ b/mobile_back_qti/cpp/backend_qti/mlperf_helper.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -31,6 +31,7 @@ static void process_config(const mlperf_backend_configuration_t *configs,
+   backend_data->loadOffTime_ = 2;
+   backend_data->loadOnTime_ = 100;
+   backend_data->useIonBuffers_ = true;
++  backend_data->acceleratorName_=configs->accelerator_desc;
+ 
+   std::string &delegate = backend_data->delegate_;
+   delegate = configs->accelerator;
+@@ -134,7 +135,8 @@ static void process_config(const mlperf_backend_configuration_t *configs,
+             << " | inputBufferType: " << backend_data->inputBufferType_
+             << " | outputBufferType: " << backend_data->outputBufferType_
+             << " | perfProfile: " << perfProfile
+-            << " | useIonBuffer: " << backend_data->useIonBuffers_;
++            << " | useIonBuffer: " << backend_data->useIonBuffers_
++            << " | acceleratorName: " << backend_data->acceleratorName_;
+ }
+ 
+ #endif
+diff --git a/mobile_back_qti/cpp/backend_qti/qti_backend_helper.cc b/mobile_back_qti/cpp/backend_qti/qti_backend_helper.cc
+index 9af1ff5..bc265a6 100644
+--- a/mobile_back_qti/cpp/backend_qti/qti_backend_helper.cc
++++ b/mobile_back_qti/cpp/backend_qti/qti_backend_helper.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -13,8 +13,6 @@ See the License for the specific language governing permissions and
+ limitations under the License.
+ ==============================================================================*/
+ 
+-#include "qti_backend_helper.h"
+-
+ #include <string>
+ #include <vector>
+ 
+@@ -35,9 +33,13 @@ limitations under the License.
+ #include "SNPE/UserBufferList.hpp"
+ #include "absl/strings/ascii.h"
+ #include "cpuctrl.h"
++#include "soc_utility.h"
++
+ #include "tensorflow/core/platform/logging.h"
+ #include "tflite_c.h"
+ 
++#include "qti_backend_helper.h"
++
+ int isSignedStatus = DEFAULT;
+ 
+ enum snpe_runtimes_t { SNPE_DSP = 0, SNPE_AIP = 1, SNPE_GPU = 2, SNPE_CPU = 3 };
+@@ -123,13 +125,14 @@ static zdl::DlSystem::Runtime_t Str2Delegate(const snpe_runtimes_t delegate) {
+   if (isDSP) {
+     if (isSignedStatus == DEFAULT) {
+       if (zdl::SNPE::SNPEFactory::isRuntimeAvailable(
+-              runtime, zdl::DlSystem::RuntimeCheckOption_t::UNSIGNEDPD_CHECK)) {
++            runtime, zdl::DlSystem::RuntimeCheckOption_t::UNSIGNEDPD_CHECK)) {
+         isSignedStatus = UNSIGNED_PD;
+         LOG(INFO) << "runtime " << delegate
+                   << " is available on this platform with UnsignedPD";
+       } else {
+         if (zdl::SNPE::SNPEFactory::isRuntimeAvailable(
+-                runtime, zdl::DlSystem::RuntimeCheckOption_t::NORMAL_CHECK)) {
++                runtime,
++                zdl::DlSystem::RuntimeCheckOption_t::NORMAL_CHECK)) {
+           isSignedStatus = SIGNED_PD;
+           LOG(INFO) << "runtime " << delegate
+                     << " is available on this platform with SignedPD";
+@@ -154,10 +157,18 @@ static zdl::DlSystem::Runtime_t Str2Delegate(const snpe_runtimes_t delegate) {
+ }
+ 
+ void QTIBackendHelper::use_psnpe(const char *model_path) {
+-  uint32_t soc_id = CpuCtrl::getSocId();
+   uint32_t numInits = get_num_inits();
+   LOG(INFO) << "numInits: " << numInits;
+ 
++  //Enable debug logs
++#ifdef DEBUG_FLAG
++    if (zdl::SNPE::SNPEFactory::initializeLogging(zdl::DlSystem::LogLevel_t::LOG_VERBOSE)){
++      LOG(INFO) << "Debug logs successful";
++  }else {
++    LOG(INFO) << "Debug logs can not be intialized";
++  }
++#endif
++
+   bool psnpe_buildStatus = false;
+   // Init cache generated on device giving better performance.
+   // So build the DLC twice to use the init cache generated in the first run
+@@ -193,20 +204,12 @@ void QTIBackendHelper::use_psnpe(const char *model_path) {
+     }
+ 
+     std::string platformOptionStr = "";
+-    if (useDspFeatures && isSignedStatus == UNSIGNED_PD) {
++    if (Socs::get_use_dsp_features() && isSignedStatus == UNSIGNED_PD) {
+       // use unsignedPD feature for untrusted app.
+       platformOptionStr += "unsignedPD:ON";
+     }
+ 
+-    // These features are not for SDM865, so turning them off.
+-    if (useDspFeatures &&
+-        (soc_id == SDM888 || soc_id == SDM778 || soc_id == SD8G1)) {
+-      // use Zero copy for input and output buffers.
+-      // Requires rpc registered ion buffers.
+-      if (useIonBuffers_) {
+-        platformOptionStr += ";useDspZeroCopy:ON";
+-      }
+-      platformOptionStr += ";dspPowerSettingContext:ON";
++    if (Socs::soc_check_feature(useIonBuffers_, platformOptionStr)){
+       buildConfig.enableInitCache = true;
+     }
+     buildConfig.platformOptions = platformOptionStr;
+@@ -235,10 +238,18 @@ void QTIBackendHelper::use_psnpe(const char *model_path) {
+ }
+ 
+ void QTIBackendHelper::use_snpe(const char *model_path) {
+-  uint32_t soc_id = CpuCtrl::getSocId();
+   uint32_t numInits = get_num_inits();
+   LOG(INFO) << "numInits: " << numInits;
+ 
++  //Enable debug logs
++#ifdef DEBUG_FLAG
++  if (zdl::SNPE::SNPEFactory::initializeLogging(zdl::DlSystem::LogLevel_t::LOG_VERBOSE)){
++      LOG(INFO) << "Debug logs successful";
++  }else {
++    LOG(INFO) << "Debug logs can not be intialized";
++  }
++#endif
++
+   // Use SNPE
+   for (int i = 0; i < numInits; i++) {
+     // Open the DL container that contains the network to execute.
+@@ -260,20 +271,12 @@ void QTIBackendHelper::use_snpe(const char *model_path) {
+         .setOutputLayers(outputLayers);
+ 
+     std::string platformOptionStr = "";
+-    if (useDspFeatures && isSignedStatus == UNSIGNED_PD) {
++    if (Socs::get_use_dsp_features() && isSignedStatus == UNSIGNED_PD) {
+       // use unsignedPD feature for untrusted app.
+       platformOptionStr += "unsignedPD:ON";
+     }
+ 
+-    // These features are not for SDM865, so turning them off.
+-    if (useDspFeatures &&
+-        (soc_id == SDM888 || soc_id == SDM778 || soc_id == SD8G1)) {
+-      // use Zero copy for input and output buffers.
+-      // Requires rpc registered ion buffers.
+-      if (useIonBuffers_) {
+-        platformOptionStr += ";useDspZeroCopy:ON";
+-      }
+-      platformOptionStr += ";dspPowerSettingContext:ON";
++    if(Socs::soc_check_feature(useIonBuffers_, platformOptionStr)){
+       snpeBuilder.setInitCacheMode(true);
+     }
+     zdl::DlSystem::PlatformConfig platformConfig;
+@@ -294,17 +297,11 @@ void QTIBackendHelper::use_snpe(const char *model_path) {
+ }
+ 
+ inline int QTIBackendHelper::get_num_inits() {
+-  uint32_t soc_id = CpuCtrl::getSocId();
+-  if (!useDspFeatures || soc_id == SDM865) {
+-    return 1;
+-  } else {
+-    return 2;
+-  }
++  return Socs::soc_num_inits();
+ }
+ 
+ void QTIBackendHelper::get_accelerator_instances(int &num_dsp, int &num_aip,
+                                                  int &num_gpu, int &num_cpu) {
+-  uint32_t soc_id = CpuCtrl::getSocId();
+   std::string &delegate = delegate_;
+   num_dsp = 0;
+   num_aip = 0;
+@@ -312,52 +309,24 @@ void QTIBackendHelper::get_accelerator_instances(int &num_dsp, int &num_aip,
+   num_cpu = 0;
+   if (scenario_ == "Offline") {
+     // For 865 use DSP+AIP
+-    if (soc_id == SDM865) {
+-      if (delegate != "snpe_aip" && delegate != "psnpe_aip") {
+-        LOG(FATAL) << "Error: Unsupported delegate for offline mode";
+-      }
+-      useDspFeatures = true;
+-      num_dsp = 1;
+-      num_aip = 6;
+-    } else if (soc_id == SDM888) {
+-      if (delegate != "snpe_dsp" && delegate != "psnpe_dsp") {
+-        LOG(FATAL) << "Error: Unsupported delegate for offline mode";
+-      }
+-      useDspFeatures = true;
+-      num_dsp = 2;
+-      num_gpu = 4;
+-    } else if (soc_id == SDM778) {
+-      if (delegate != "snpe_dsp" && delegate != "psnpe_dsp") {
+-        LOG(FATAL) << "Error: Unsupported delegate for offline mode";
+-      }
+-      useDspFeatures = true;
+-      num_dsp = 2;
+-      num_gpu = 0;
+-    } else if (soc_id == SD8G1) {
+-      if (delegate != "snpe_dsp" && delegate != "psnpe_dsp") {
+-        LOG(FATAL) << "Error: Unsupported delegate for offline mode";
+-      }
+-      useDspFeatures = true;
+-      num_dsp = 2;
+-      num_aip = 0;
+-      num_gpu = 0;
++      Socs::soc_offline_core_instance(num_dsp, num_aip, num_gpu, num_cpu, delegate);
+     }
+-  } else {
++  else {
+     if (delegate == "snpe_dsp" || delegate == "psnpe_dsp") {
+       num_dsp = 1;
+-      useDspFeatures = true;
++      Socs::set_use_dsp_features(true);
+     } else if (delegate == "snpe_aip" || delegate == "psnpe_aip") {
+       num_aip = 1;
+-      useDspFeatures = true;
++      Socs::set_use_dsp_features(true);
+     } else if (delegate == "snpe_gpu" || delegate == "psnpe_gpu") {
+       num_gpu = 1;
+-      useDspFeatures = false;
++      Socs::set_use_dsp_features(false);
+     } else if (delegate == "snpe_cpu" || delegate == "psnpe_cpu") {
+       num_cpu = 1;
+-      useDspFeatures = false;
++      Socs::set_use_dsp_features(false);
+     } else {
+       LOG(FATAL) << "Error: Unsupported delegate " << delegate << " SoC ID "
+-                 << soc_id;
++                 << Socs::get_soc_name();
+     }
+   }
+   LOG(INFO) << "Using " << num_dsp << " dsp " << num_aip << " aip " << num_gpu
+@@ -426,8 +395,8 @@ void QTIBackendHelper::map_outputs() {
+                                       (*ubaOpt)->getDims().getDimensions());
+ 
+       outputBatchBufsize_ = bufSize;
+-      LOG(INFO) << "outputBufferType: " << outputBufferType_
+-                << " name: " << name;
++      // LOG(INFO) << "outputBufferType: " << outputBufferType_
++      //          << " name: " << name;
+       if (useIonBuffers_) {
+         Allocator<uint8_t>::useIonAllocator();
+       } else {
+@@ -570,7 +539,6 @@ void QTIBackendHelper::set_runtime_config() {
+ }
+ 
+ std::string QTIBackendHelper::get_snpe_version() {
+-  zdl::DlSystem::Version_t version =
+-      zdl::SNPE::SNPEFactory::getLibraryVersion();
++  zdl::DlSystem::Version_t version = zdl::SNPE::SNPEFactory::getLibraryVersion();
+   return version.Build;
+ }
+diff --git a/mobile_back_qti/cpp/backend_qti/qti_backend_helper.h b/mobile_back_qti/cpp/backend_qti/qti_backend_helper.h
+index 90bed6e..1bdc68b 100644
+--- a/mobile_back_qti/cpp/backend_qti/qti_backend_helper.h
++++ b/mobile_back_qti/cpp/backend_qti/qti_backend_helper.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -41,10 +41,11 @@ class QTIBackendHelper {
+ 
+  public:
+   enum QTIBufferType { FLOAT_32 = 0, UINT_8 = 1 };
+-  using GetBufferFn = std::add_pointer<void *(size_t)>::type;
++  using GetBufferFn = std::add_pointer<void *(size_t,int)>::type;
+   using ReleaseBufferFn = std::add_pointer<void(void *)>::type;
+ 
+   const char *name_ = "snpe";
++  const char *acceleratorName_;
+   std::string snpeOutputLayers_;
+   std::vector<mlperf_data_t> inputFormat_;
+   std::vector<mlperf_data_t> outputFormat_;
+@@ -63,6 +64,7 @@ class QTIBackendHelper {
+   bool useSnpe_;
+   mlperf_backend_ptr_t tfliteBackend_;
+   int batchSize_;
++  int queryCount_;
+   int inputBatch_;
+   int outputBatchBufsize_;
+   GetBufferFn getBuffer_;
+@@ -71,7 +73,6 @@ class QTIBackendHelper {
+   std::string delegate_;
+   QTIBufferType inputBufferType_ = UINT_8;
+   QTIBufferType outputBufferType_ = FLOAT_32;
+-  bool useDspFeatures = false;
+   uint32_t loadOffTime_ = 2;
+   uint32_t loadOnTime_ = 100;
+   bool useIonBuffers_ = true;
+diff --git a/mobile_back_qti/cpp/backend_qti/qti_c.cc b/mobile_back_qti/cpp/backend_qti/qti_c.cc
+index ec3537b..c4e0a63 100644
+--- a/mobile_back_qti/cpp/backend_qti/qti_c.cc
++++ b/mobile_back_qti/cpp/backend_qti/qti_c.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -18,11 +18,16 @@ limitations under the License.
+ 
+ #include "allocator.h"
+ #include "cpuctrl.h"
++#include "soc_utility.h"
+ #include "mlperf_helper.h"
+ #include "qti_backend_helper.h"
+ #include "qti_settings.h"
+ #include "tensorflow/core/platform/logging.h"
+ #include "tflite_c.h"
++#ifdef DEBUG_FLAG
++#include <chrono>
++using namespace std::chrono;
++#endif
+ 
+ #define xverstr(a) verstr(a)
+ #define verstr(a) #a
+@@ -49,41 +54,10 @@ bool mlperf_backend_matches_hardware(const char **not_allowed_message,
+   std::ifstream in_file;
+ 
+   *not_allowed_message = nullptr;
+-  bool isQSoC = CpuCtrl::isSnapDragon(device_info->manufacturer);
++  bool isQSoC = Socs::isSnapDragon(device_info->manufacturer);
+   LOG(INFO) << "Is QTI SOC: " << isQSoC;
+-
+-  uint32_t soc_id = CpuCtrl::getSocId();
+-  if (isQSoC && soc_id == 0) {
+-    // it's a QTI SOC, but can't access soc_id
+-    *not_allowed_message = "Unsupported app";
+-    *settings = empty_settings.c_str();
+-    return true;
+-  }
+-
+-  // Check if this SoC is supported
+-  if (isQSoC) {
+-    switch (soc_id) {
+-      // it's a QTI SOC, and the chipset is supported
+-      *not_allowed_message = nullptr;
+-      case SDM865:
+-        *settings = qti_settings_sdm865.c_str();
+-        break;
+-      case SDM888:
+-        *settings = qti_settings_sdm888.c_str();
+-        break;
+-      case SDM778:
+-        *settings = qti_settings_sdm778.c_str();
+-        break;
+-      case SD8G1:
+-        *settings = qti_settings_sd8g1.c_str();
+-        break;
+-      default:
+-        // it's a QTI SOC, but the chipset is not yet supported
+-        *not_allowed_message = "Unsupported QTI SoC";
+-        *settings = empty_settings.c_str();
+-        break;
+-    }
+-    return true;
++  if(isQSoC) {
++    return Socs::soc_settings(settings, not_allowed_message);
+   }
+ 
+   // It's not a QTI SOC, so set pbData to NULL
+@@ -158,6 +132,8 @@ mlperf_backend_ptr_t mlperf_backend_create(
+     backend_data->use_psnpe(model_path);
+   }
+ 
++  backend_data->queryCount_ = 0;
++
+   backend_data->get_data_formats();
+   backend_data->map_inputs();
+   backend_data->map_outputs();
+@@ -167,9 +143,10 @@ mlperf_backend_ptr_t mlperf_backend_create(
+   return backend_data;
+ }
+ 
+-// TODO: Return the name of the accelerator.
++// Return the name of the accelerator.
+ const char *mlperf_backend_accelerator_name(mlperf_backend_ptr_t backend_ptr) {
+-  return "ACCELERATOR_NAME";
++    QTIBackendHelper *backend_data = (QTIBackendHelper *)backend_ptr;
++    return backend_data->acceleratorName_;
+ }
+ 
+ // Return the name of this backend.
+@@ -200,6 +177,9 @@ void mlperf_backend_delete(mlperf_backend_ptr_t backend_ptr) {
+ 
+ // Run the inference for a sample.
+ mlperf_status_t mlperf_backend_issue_query(mlperf_backend_ptr_t backend_ptr) {
++#ifdef DEBUG_FLAG
++  auto start = high_resolution_clock::now();
++#endif
+   QTIBackendHelper *backend_data = (QTIBackendHelper *)backend_ptr;
+   if (backend_data->isTflite_) {
+     return tflite_backend_issue_query(backend_data->tfliteBackend_);
+@@ -215,6 +195,13 @@ mlperf_status_t mlperf_backend_issue_query(mlperf_backend_ptr_t backend_ptr) {
+       return MLPERF_FAILURE;
+     }
+   }
++#ifdef DEBUG_FLAG
++  auto end = high_resolution_clock::now();
++  auto duration = duration_cast<microseconds>(end - start);
++  LOG(INFO) << "Query cnt: " << backend_data->queryCount_
++            << "Inference Time(ms): " << duration.count();
++#endif
++  backend_data->queryCount_++;
+   return MLPERF_SUCCESS;
+ }
+ 
+@@ -344,7 +331,7 @@ mlperf_status_t mlperf_backend_get_output(mlperf_backend_ptr_t backend_ptr,
+ }
+ 
+ void *mlperf_backend_get_buffer(size_t n) {
+-  return backend_data_->getBuffer_(n);
++  return backend_data_->getBuffer_(n,backend_data_->inputBatch_);
+ }
+ 
+ void mlperf_backend_release_buffer(void *p) {
+diff --git a/mobile_back_qti/cpp/backend_qti/qti_settings.h b/mobile_back_qti/cpp/backend_qti/qti_settings.h
+index fa71c5e..f50a67d 100644
+--- a/mobile_back_qti/cpp/backend_qti/qti_settings.h
++++ b/mobile_back_qti/cpp/backend_qti/qti_settings.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -74,15 +74,6 @@ benchmark_setting {
+   md5_checksum: "36a953d07a8c6f2d3e05b22e87cec95b"
+ }
+ 
+-benchmark_setting {
+-  benchmark_id: "IS_uint8"
+-  accelerator: "snpe_aip"
+-  accelerator_desc: "AIP"
+-  configuration: "SNPE"
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v1_0/SNPE/deeplabv3_hta.dlc"
+-  md5_checksum: "b1237cfdef02887a2205154eb44d0515"
+-}
+-
+ benchmark_setting {
+   benchmark_id: "IS_uint8_mosaic"
+   accelerator: "snpe_aip"
+@@ -171,27 +162,6 @@ benchmark_setting {
+   md5_checksum: "ab97172963ec8a92905c6a2c024557ab"
+ }
+ 
+-benchmark_setting {
+-  benchmark_id: "IS_uint8"
+-  accelerator: "psnpe_dsp"
+-  accelerator_desc: "HTP"
+-  configuration: "SNPE"
+-  custom_setting {
+-    id: "input_buffer_type"
+-    value: "uint_8"
+-  }
+-  custom_setting {
+-    id: "bg_load"
+-    value: "true"
+-  }
+-  custom_setting {
+-    id: "output_buffer_type"
+-    value: "uint_8"
+-  }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v1_1/SNPE/deeplabv3_htp.dlc"
+-  md5_checksum: "364d536264d0e3263184f4dac88a75d9"
+-}
+-
+ benchmark_setting {
+   benchmark_id: "IS_uint8_mosaic"
+   accelerator: "snpe_dsp"
+@@ -289,24 +259,99 @@ benchmark_setting {
+ }
+ 
+ benchmark_setting {
+-  benchmark_id: "IS_uint8"
+-  accelerator: "psnpe_dsp"
++  benchmark_id: "IS_uint8_mosaic"
++  accelerator: "snpe_dsp"
+   accelerator_desc: "HTP"
+   configuration: "SNPE"
+   custom_setting {
+     id: "input_buffer_type"
+     value: "uint_8"
+   }
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
+   custom_setting {
+     id: "output_buffer_type"
+     value: "uint_8"
+   }
++  src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/mobile_mosaic_htp.dlc"
++  md5_checksum: "ebae961e6f0b53bd839f485b125f5e46"
++})SETTINGS";
++
++const std::string qti_settings_sd7g1 = R"SETTINGS(
++common_setting {
++  id: "num_threads"
++  name: "Number of threads"
++  value {
++    value: "4"
++    name: "4 threads"
++  }
++}
++
++benchmark_setting {
++  benchmark_id: "IC_tpu_uint8"
++  accelerator: "snpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
++  src: "app:///mlperf_models/mobilenet_edgetpu_224_1.0_htp.dlc"
++  md5_checksum: ""
++}
++
++benchmark_setting {
++  benchmark_id: "IC_tpu_uint8_offline"
++  accelerator: "psnpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  batch_size: 12288
++  custom_setting {
++    id: "scenario"
++    value: "Offline"
++  }
++  src: "app:///mlperf_models/mobilenet_edgetpu_224_1.0_htp_batched_sd7g1.dlc"
++  md5_checksum: ""
++}
++
++benchmark_setting {
++  benchmark_id: "OD_uint8"
++  accelerator: "snpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  custom_setting {
++    id: "snpe_output_layers"
++    value: "Postprocessor/BatchMultiClassNonMaxSuppression"
++  }
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
++  src: "app:///mlperf_models/ssd_mobiledet_qat_htp.dlc"
++  md5_checksum: ""
++}
++
++benchmark_setting {
++  benchmark_id: "LU_int8"
++  accelerator: "snpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  custom_setting {
++    id: "snpe_output_layers"
++    value: "transpose"
++  }
++  custom_setting {
++    id: "input_buffer_type"
++    value: "float_32"
++  }
+   custom_setting {
+     id: "bg_load"
+     value: "true"
+   }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v1_1/SNPE/deeplabv3_htp.dlc"
+-  md5_checksum: "364d536264d0e3263184f4dac88a75d9"
++  src: "app:///mlperf_models/mobilebert_quantized_htp.dlc"
++  md5_checksum: ""
+ }
+ 
+ benchmark_setting {
+@@ -326,8 +371,8 @@ benchmark_setting {
+     id: "output_buffer_type"
+     value: "uint_8"
+   }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/mobile_mosaic_htp.dlc"
+-  md5_checksum: "ebae961e6f0b53bd839f485b125f5e46"
++  src: "app:///mlperf_models/mobile_mosaic_htp.dlc"
++  md5_checksum: ""
+ })SETTINGS";
+ 
+ const std::string qti_settings_sd8g1 = R"SETTINGS(
+@@ -351,7 +396,7 @@ benchmark_setting {
+   }
+   src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/mobilenet_edgetpu_224_1.0_htp.dlc"
+   md5_checksum: "4e8c9ec583557f8dc341cdcc45dba241"
+-  single_stream_expected_latency_ns: 800000
++  single_stream_expected_latency_ns: 600000
+ }
+ 
+ benchmark_setting {
+@@ -410,12 +455,16 @@ benchmark_setting {
+     id: "use_ion_buffer"
+     value: "false"
+   }
++  custom_setting {
++    id: "perf_profile"
++    value: "high_performance"
++  }
+   src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/mobilebert_quantized_htp.dlc"
+   md5_checksum: "ad724f945b3745e88158cc5d5de1c2a5"
+ }
+ 
+ benchmark_setting {
+-  benchmark_id: "IS_uint8"
++  benchmark_id: "IS_uint8_mosaic"
+   accelerator: "snpe_dsp"
+   accelerator_desc: "HTP"
+   configuration: "SNPE"
+@@ -431,8 +480,96 @@ benchmark_setting {
+     id: "output_buffer_type"
+     value: "uint_8"
+   }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/deeplabv3_htp.dlc"
+-  md5_checksum: "4f530fef7ae8c7adc0949d371e22f485"
++  src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/mobile_mosaic_htp.dlc"
++  md5_checksum: "ebae961e6f0b53bd839f485b125f5e46"
++})SETTINGS";
++
++const std::string qti_settings_sd8pg1 = R"SETTINGS(
++common_setting {
++  id: "num_threads"
++  name: "Number of threads"
++  value {
++    value: "4"
++    name: "4 threads"
++  }
++}
++
++benchmark_setting {
++  benchmark_id: "IC_tpu_uint8"
++  accelerator: "snpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
++  src: "app:///mlperf_models/mobilenet_edgetpu_224_1.0_htp.dlc"
++  md5_checksum: ""
++  single_stream_expected_latency_ns: 600000
++}
++
++benchmark_setting {
++  benchmark_id: "IC_tpu_uint8_offline"
++  accelerator: "psnpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  batch_size: 12288
++  custom_setting {
++    id: "scenario"
++    value: "Offline"
++  }
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
++  src: "app:///mlperf_models/mobilenet_edgetpu_224_1.0_htp_batched_sd8pg1.dlc"
++  md5_checksum: ""
++}
++
++benchmark_setting {
++  benchmark_id: "OD_uint8"
++  accelerator: "snpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  custom_setting {
++    id: "snpe_output_layers"
++    value: "Postprocessor/BatchMultiClassNonMaxSuppression"
++  }
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
++  src: "app:///mlperf_models/ssd_mobiledet_qat_htp.dlc"
++  md5_checksum: ""
++}
++
++benchmark_setting {
++  benchmark_id: "LU_int8"
++  accelerator: "snpe_dsp"
++  accelerator_desc: "HTP"
++  configuration: "SNPE"
++  custom_setting {
++    id: "snpe_output_layers"
++    value: "transpose"
++  }
++  custom_setting {
++    id: "bg_load"
++    value: "true"
++  }
++  custom_setting {
++    id: "input_buffer_type"
++    value: "float_32"
++  }
++  custom_setting {
++    id: "use_ion_buffer"
++    value: "false"
++  }
++  custom_setting {
++    id: "perf_profile"
++    value: "high_performance"
++  }
++  src: "app:///mlperf_models/mobilebert_quantized_htp.dlc"
++  md5_checksum: ""
+ }
+ 
+ benchmark_setting {
+@@ -452,8 +589,8 @@ benchmark_setting {
+     id: "output_buffer_type"
+     value: "uint_8"
+   }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v2_0/SNPE/mobile_mosaic_htp.dlc"
+-  md5_checksum: "ebae961e6f0b53bd839f485b125f5e46"
++  src: "app:///mlperf_models/mobile_mosaic_htp.dlc"
++  md5_checksum: ""
+ })SETTINGS";
+ 
+ #endif
+diff --git a/mobile_back_qti/cpp/backend_qti/qti_tflite_test_settings.h b/mobile_back_qti/cpp/backend_qti/qti_tflite_test_settings.h
+deleted file mode 100644
+index b35a8f9..0000000
+--- a/mobile_back_qti/cpp/backend_qti/qti_tflite_test_settings.h
++++ /dev/null
+@@ -1,113 +0,0 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
+-
+-Licensed under the Apache License, Version 2.0 (the "License");
+-you may not use this file except in compliance with the License.
+-You may obtain a copy of the License at
+-
+-    http://www.apache.org/licenses/LICENSE-2.0
+-
+-Unless required by applicable law or agreed to in writing, software
+-distributed under the License is distributed on an "AS IS" BASIS,
+-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-See the License for the specific language governing permissions and
+-limitations under the License.
+-==============================================================================*/
+-#ifndef SNPE_SETTINGS_H
+-#define SNPE_SETTINGS_H
+-
+-#include <string>
+-
+-const std::string empty_settings = "";
+-
+-const std::string qti_settings_356 = R"SETTINGS(
+-common_setting {
+-  id: "num_threads"
+-  name: "Number of threads"
+-  value {
+-    value: "4"
+-    name: "4 threads"
+-  }
+-}
+-
+-benchmark_setting {
+-  benchmark_id: "LU_gpu_float32"
+-  setting {
+-    id: "accelerator"
+-    name: "accelerator"
+-    value {
+-      value: "gpu_f16"
+-      name: "GPU(Float 16)"
+-    }
+-  }
+-  setting {
+-    id: "configuration"
+-    name: "Configuration"
+-    value {
+-      value: "QTI backend using SNPE, NNAPI and TFLite GPU Delegate"
+-      name: "TFLite"
+-    }
+-  }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v0_7/tflite/mobilebert_float_384_gpu.tflite"
+-})SETTINGS";
+-
+-const std::string qti_settings_415 = R"SETTINGS(
+-common_setting {
+-  id: "num_threads"
+-  name: "Number of threads"
+-  value {
+-    value: "4"
+-    name: "4 threads"
+-  }
+-}
+-
+-benchmark_setting {
+-  benchmark_id: "OD_uint8"
+-  setting {
+-    id: "accelerator"
+-    name: "accelerator"
+-    value {
+-      value: "NNAPI"
+-      name: "NNAPI"
+-    }
+-  }
+-  setting {
+-    id: "configuration"
+-    name: "Configuration"
+-    value {
+-      value: "QTI backend using SNPE, NNAPI and TFLite GPU Delegate"
+-      name: "TFLite"
+-    }
+-  }
+-  setting {
+-    id: "snpeOutputLayers"
+-    name: "snpeOutputLayerName"
+-    value {
+-        value: "Postprocessor/BatchMultiClassNonMaxSuppression,add"
+-        name: "snpeOutputLayerName"
+-    }
+-  }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v0_7/tflite/ssd_mobilenet_v2_300_uint8.tflite"
+-}
+-
+-benchmark_setting {
+-  benchmark_id: "LU_gpu_float32"
+-  setting {
+-    id: "accelerator"
+-    name: "accelerator"
+-    value {
+-      value: "gpu_f16"
+-      name: "GPU(Float 16)"
+-    }
+-  }
+-  setting {
+-    id: "configuration"
+-    name: "Configuration"
+-    value {
+-      value: "QTI backend using SNPE, NNAPI and TFLite GPU Delegate"
+-      name: "TFLite"
+-    }
+-  }
+-  src: "https://github.com/mlcommons/mobile_models/raw/main/v0_7/tflite/mobilebert_float_384_gpu.tflite"
+-})SETTINGS";
+-
+-#endif
+diff --git a/mobile_back_qti/cpp/backend_qti/rpcmem.cc b/mobile_back_qti/cpp/backend_qti/rpcmem.cc
+index ba5956f..2d28551 100644
+--- a/mobile_back_qti/cpp/backend_qti/rpcmem.cc
++++ b/mobile_back_qti/cpp/backend_qti/rpcmem.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+@@ -16,10 +16,11 @@ limitations under the License.
+ #include "rpcmem.h"
+ 
+ #include "cpuctrl.h"
++#include "soc_utility.h"
+ #include "tensorflow/core/platform/logging.h"
+ 
+ RpcMem::RpcMem() {
+-  if (CpuCtrl::getSocId() != SDM865) {
++  if (Socs::needs_rpcmem()) {
+     libHandle_ = dlopen("libcdsprpc.so", RTLD_NOW);
+   } else {
+     libHandle_ = nullptr;
+diff --git a/mobile_back_qti/cpp/backend_qti/rpcmem.h b/mobile_back_qti/cpp/backend_qti/rpcmem.h
+index 3acbc4a..8ee825c 100644
+--- a/mobile_back_qti/cpp/backend_qti/rpcmem.h
++++ b/mobile_back_qti/cpp/backend_qti/rpcmem.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/cpp/backend_qti/soc_utility.cc b/mobile_back_qti/cpp/backend_qti/soc_utility.cc
+new file mode 100644
+index 0000000..5977458
+--- /dev/null
++++ b/mobile_back_qti/cpp/backend_qti/soc_utility.cc
+@@ -0,0 +1,242 @@
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++    http://www.apache.org/licenses/LICENSE-2.0
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++==============================================================================*/
++
++#include "soc_utility.h"
++#include <stdint.h>
++#include <fstream>
++#include <thread>
++
++#include "tensorflow/core/platform/logging.h"
++
++SocInfo unsupportedSoc = SocInfo(UNSUPPORTED_SOC_STR);
++SocInfo Socs::m_soc_info;
++bool Socs::is_init_done;
++
++std::map<uint32_t, SocInfo> socDetails = SocProperties({
++     // num_dsp, num_aip, num_gpu, num_cpu,
++     // useDspFeatures, settings,
++     // soc_name, num_inits,
++     // hlc,
++     // llc,
++     // max_cores, needs_rpcmem
++    {356,
++        SocInfo(1, 6, 0, 0,
++                false, qti_settings_sdm865,
++                "SDM865", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, false)
++    },
++    {415,
++        SocInfo(2, 0, 4, 0,
++                true, qti_settings_sdm888,
++                "SDM888", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++    {475,
++        SocInfo(2, 0, 0, 0,
++                true, qti_settings_sdm778,
++                "SDM778", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++    {506,
++        SocInfo(2, 0, 0, 0,
++                true, qti_settings_sd7g1,
++                "SD7G1", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++    {457,
++        SocInfo(2, 0, 0, 0,
++                true, qti_settings_sd8g1,
++                "SD8G1", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++    {552,
++        SocInfo(2, 0, 0, 0,
++                true, qti_settings_sd8pg1,
++                "SD8PG1 4G", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++    {540,
++        SocInfo(2, 0, 0, 0,
++                true, qti_settings_sd8pg1,
++                "SD8PG1 prime ", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++    {530,
++        SocInfo(2, 0, 0, 0,
++                true, qti_settings_sd8pg1,
++                "SD8PG1", 1,
++                std::vector<int>({0,1,2,3}),
++                std::vector<int>({4,5,6,7}),
++                8, true)
++    },
++}).m_soc_details;
++
++void Socs::soc_info_init(){
++    if (is_init_done) return;
++
++    std::ifstream in_file;
++    std::vector<char> line(5);
++    in_file.open("/sys/devices/soc0/soc_id");
++    if (in_file.fail()) {
++        in_file.open("/sys/devices/system/soc/soc0/id");
++    }
++    if (in_file.fail()) {
++        m_soc_info = unsupportedSoc;
++        LOG(INFO) << "Failed to read SOC file: ";
++        return;
++    }
++
++    in_file.read(line.data(), 5);
++    in_file.close();
++    uint32_t soc_id = (uint32_t)std::atoi(line.data());
++
++    LOG(INFO) << "Soc ID: " << soc_id;
++    if(socDetails.find(soc_id) != socDetails.end()){
++        m_soc_info = socDetails.find(soc_id)->second;
++    }
++}
++
++std::string Socs::get_soc_name() {
++  soc_info_init();
++  return m_soc_info.m_soc_name;
++}
++
++void Socs:: soc_offline_core_instance(int &num_dsp, int &num_aip,
++                                      int &num_gpu, int &num_cpu,
++                                      std::string &delegate) {
++    soc_info_init();
++    num_dsp = m_soc_info.m_num_dsp;
++    num_aip = m_soc_info.m_num_aip;
++    num_gpu = m_soc_info.m_num_gpu;
++    num_cpu = m_soc_info.m_num_cpu;
++}
++
++int Socs::soc_num_inits() {
++    soc_info_init();
++    return m_soc_info.m_num_inits;
++}
++
++bool Socs::isSnapDragon(const char *manufacturer) {
++    soc_info_init();
++    bool is_qcom = false;
++
++    if (strncmp("QUALCOMM", manufacturer, 7) == 0) {
++        // This is a test device
++        LOG(INFO) << "QTI test device detected";
++        is_qcom = true;
++    } else {
++        static EGLint const attribute_list[] = {EGL_RED_SIZE,  1, EGL_GREEN_SIZE, 1,
++                                                EGL_BLUE_SIZE, 1, EGL_NONE};
++
++        EGLDisplay display;
++        EGLConfig config;
++        EGLContext context;
++        EGLSurface surface;
++        EGLint num_config;
++
++        /* get an EGL display connection */
++        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
++        /* initialize the EGL display connection */
++        eglInitialize(display, NULL, NULL);
++        /* get an appropriate EGL frame buffer configuration */
++        eglChooseConfig(display, attribute_list, &config, 1, &num_config);
++        /* create an EGL rendering context */
++        context = eglCreateContext(display, config, EGL_NO_CONTEXT, NULL);
++        /* connect the context to the surface */
++        eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, context);
++
++        const unsigned char *vendor = glGetString(GL_VENDOR);
++
++        if (strcmp("Qualcomm", (const char *)vendor) == 0) {
++            is_qcom = true;
++        }
++
++        LOG(INFO) << "vendor: " << vendor;
++    }
++    return is_qcom;
++}
++
++int Socs::soc_check_feature(bool &useIonBuffers_,
++                            std::string &platformOptionStr){
++    soc_info_init();
++    // These features are not for SDM865, so turning them off.
++    if (m_soc_info.m_useDspFeatures) {
++        // use Zero copy for input and output buffers.
++        // Requires rpc registered ion buffers.
++        if (useIonBuffers_) {
++            platformOptionStr += ";useDspZeroCopy:ON";
++        }
++        platformOptionStr += ";dspPowerSettingContext:ON";
++        return 1;
++    }
++    return 0;
++}
++
++bool Socs::soc_settings(const char **settings, const char **not_allowed_message){
++    soc_info_init();
++
++    if (m_soc_info.m_soc_name == UNSUPPORTED_SOC_STR) {
++        // it's a QTI SOC, but can't access soc_id
++        *not_allowed_message = "Unsupported app";
++        *settings = empty_settings.c_str();
++        return true;
++    }
++
++    // Check if this SoC is supported
++    *not_allowed_message = nullptr;
++    *settings = m_soc_info.m_settings.c_str();
++    if (m_soc_info.m_soc_name == DEFAULT_SOC_STR){
++        // it's a QTI SOC, but the chipset is not yet supported
++        *not_allowed_message = "Unsupported QTI SoC";
++    }
++    return true;
++}
++
++bool Socs::needs_rpcmem() {
++    soc_info_init();
++    return m_soc_info.m_needs_rpcmem;
++}
++
++bool Socs::get_use_dsp_features() {
++    soc_info_init();
++    return m_soc_info.m_useDspFeatures;
++}
++
++void Socs::set_use_dsp_features(bool flag) {
++    soc_info_init();
++    // Update true / false only based on the soc_info value
++    m_soc_info.m_useDspFeatures = m_soc_info.m_useDspFeatures && flag;
++}
++
++void Socs::define_soc(std::vector<uint32_t> &allcores, std::vector<uint32_t> &low_latency_cores,
++                      std::vector<uint32_t> &high_latency_cores, int &maxcores){
++    soc_info_init();
++    high_latency_cores.assign(m_soc_info.m_high_latency_cores.begin(),
++                              m_soc_info.m_high_latency_cores.end());
++    low_latency_cores.assign(m_soc_info.m_low_latency_cores.begin(),
++                              m_soc_info.m_low_latency_cores.end());
++    maxcores = m_soc_info.m_max_cores;
++}
+\ No newline at end of file
+diff --git a/mobile_back_qti/cpp/backend_qti/soc_utility.h b/mobile_back_qti/cpp/backend_qti/soc_utility.h
+new file mode 100644
+index 0000000..ede4e6d
+--- /dev/null
++++ b/mobile_back_qti/cpp/backend_qti/soc_utility.h
+@@ -0,0 +1,120 @@
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++    http://www.apache.org/licenses/LICENSE-2.0
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++==============================================================================*/
++
++#ifndef MOBILE_APP_OPEN_SOC_UTILITY_H
++#define MOBILE_APP_OPEN_SOC_UTILITY_H
++
++#include "qti_settings.h"
++#include <EGL/egl.h>
++#include <GLES/gl.h>
++
++#include <string>
++#include <stdint.h>
++#include <map>
++#include <vector>
++
++#define DEFAULT_SOC_STR "Default"
++#define UNSUPPORTED_SOC_STR "Unsupported"
++
++class SocInfo {
++public:
++    SocInfo(std::string soc_name = DEFAULT_SOC_STR)
++            : m_num_dsp(0)
++            , m_num_aip(0)
++            , m_num_gpu(0)
++            , m_num_cpu(0)
++            , m_useDspFeatures(false)
++            , m_settings(empty_settings)
++            , m_soc_name(soc_name)
++            , m_num_inits(0)
++            , m_max_cores(0)
++            , m_needs_rpcmem(false)
++            {}
++
++    SocInfo(int num_dsp, int num_aip, int num_gpu, int num_cpu, bool useDspFeatures, const std::string settings,
++            std::string soc_name, int num_inits, std::vector<int> hlc, std::vector<int> llc, int max_cores, bool needs_rpcmem)
++            : m_num_dsp(num_dsp)
++            , m_num_aip(num_aip)
++            , m_num_gpu(num_gpu)
++            , m_num_cpu(num_cpu)
++            , m_useDspFeatures(useDspFeatures)
++            , m_settings(settings)
++            , m_soc_name(soc_name)
++            , m_num_inits(num_inits)
++            , m_high_latency_cores(hlc)
++            , m_low_latency_cores(llc)
++            , m_max_cores(max_cores)
++            , m_needs_rpcmem(needs_rpcmem)
++            {
++              if (m_useDspFeatures == false) {
++                m_num_inits = 1;
++              }
++            }
++
++    int m_num_dsp;
++    int m_num_aip;
++    int m_num_gpu;
++    int m_num_cpu;
++    int m_num_inits;
++    bool m_useDspFeatures;
++    std::string m_settings;
++    std::string m_soc_name;
++    std::vector<int> m_high_latency_cores;
++    std::vector<int> m_low_latency_cores;
++    int m_max_cores;
++    bool m_needs_rpcmem;
++};
++
++class SocProperties{
++public:
++    SocProperties(std::map<uint32_t, SocInfo> soc_details)
++            : m_soc_details(soc_details){}
++
++    std::map<uint32_t, SocInfo> m_soc_details;
++
++};
++
++class Socs {
++public:
++    static void soc_info_init();
++
++    static void soc_offline_core_instance(int &num_dsp, int &num_aip, int &num_gpu,
++                                          int &num_cpu, std::string &delegate);
++    static int soc_num_inits();
++
++    static bool isSnapDragon(const char *manufacturer);
++
++    static int soc_check_feature(bool &useIonBuffers_,
++                                 std::string &platformOptionStr);
++
++    static bool soc_settings(const char **settings, const char **not_allowed_message);
++
++    static bool is_sdm865();
++
++    static void define_soc(std::vector<uint32_t> &allcores, std::vector<uint32_t> &low_latency_cores,
++                           std::vector<uint32_t> &high_latency_cores, int &maxcore);
++
++    static bool needs_rpcmem();
++
++    static std::string get_soc_name();
++
++    static bool get_use_dsp_features();
++
++    static void set_use_dsp_features(bool flag);
++
++    static SocInfo m_soc_info;
++
++    static bool is_init_done;
++};
++
++#endif //MOBILE_APP_OPEN_SOC_UTILITY_H
++
+diff --git a/mobile_back_qti/cpp/backend_qti/test.cc b/mobile_back_qti/cpp/backend_qti/test.cc
+index 38aa99c..c2e0cf6 100644
+--- a/mobile_back_qti/cpp/backend_qti/test.cc
++++ b/mobile_back_qti/cpp/backend_qti/test.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/cpp/backend_qti/tflite_c.cc b/mobile_back_qti/cpp/backend_qti/tflite_c.cc
+index 5961aac..2a31704 100644
+--- a/mobile_back_qti/cpp/backend_qti/tflite_c.cc
++++ b/mobile_back_qti/cpp/backend_qti/tflite_c.cc
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/cpp/backend_qti/tflite_c.h b/mobile_back_qti/cpp/backend_qti/tflite_c.h
+index 7d21640..8e0cb04 100644
+--- a/mobile_back_qti/cpp/backend_qti/tflite_c.h
++++ b/mobile_back_qti/cpp/backend_qti/tflite_c.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++/* Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+diff --git a/mobile_back_qti/docker/mlperf_mosaic/Dockerfile b/mobile_back_qti/docker/mlperf_mosaic/Dockerfile
+index 9a686d3..4e76710 100644
+--- a/mobile_back_qti/docker/mlperf_mosaic/Dockerfile
++++ b/mobile_back_qti/docker/mlperf_mosaic/Dockerfile
+@@ -1,2 +1,4 @@
+ FROM tensorflow/tensorflow:2.6.0
+ LABEL maintainer="quic_mcharleb@quicinc.com"
++
++RUN pip3 install pyyaml
+\ No newline at end of file
+diff --git a/mobile_back_qti/make/builddir.mk b/mobile_back_qti/make/builddir.mk
+index 32fb98e..6e78b5a 100644
+--- a/mobile_back_qti/make/builddir.mk
++++ b/mobile_back_qti/make/builddir.mk
+@@ -1,4 +1,4 @@
+-# Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
++# Copyright (c) 2020-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -17,7 +17,6 @@ this_mkfile:=$(abspath $(lastword $(MAKEFILE_LIST)))
+ DLCDIR:=$(abspath $(shell dirname ${this_mkfile})/../DLC)
+ TOPDIR=$(abspath ${DLCDIR}/../..)
+ BUILDDIR=${TOPDIR}/output
+-SNPE_VERSION=$(shell grep SNPE_VERSION ../variables.bzl | cut -d\" -f2)
+ 
+ USERID=$(shell id -u)
+ GROUPID=$(shell id -g)
+diff --git a/mobile_back_qti/make/qti_backend.mk b/mobile_back_qti/make/qti_backend.mk
+index 0fba35e..8108388 100644
+--- a/mobile_back_qti/make/qti_backend.mk
++++ b/mobile_back_qti/make/qti_backend.mk
+@@ -1,4 +1,4 @@
+-# Copyright 2021 The MLPerf Authors. All Rights Reserved.
++# Copyright 2021-2022 The MLPerf Authors. All Rights Reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+@@ -12,13 +12,13 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ ##########################################################################
+-
+-ifeq (${WITH_QTI},1)
+-  $(info WITH_QTI=1)
++ifeq ($(WITH_QTI),)
++  $(info WITH_QTI option is empty)
++else ifeq ($(WITH_QTI),$(filter $(WITH_QTI),1 2))
+   ifneq (${SNPE_SDK},)
+     backend_qti_flutter_docker_args=-v "${SNPE_SDK}:/mnt/project/mobile_back_qti/$(shell basename ${SNPE_SDK})"
+   endif
+-
++  $(info WITH_QTI=$(WITH_QTI))
+   local_snpe_sdk_root=$(shell echo mobile_back_qti/snpe-* | awk '{print $$NF}')
+   $(info detected SNPE SDK: ${local_snpe_sdk_root})
+   backend_qti_android_files=${BAZEL_LINKS_PREFIX}bin/mobile_back_qti/cpp/backend_qti/libqtibackend.so \
+@@ -26,15 +26,16 @@ ifeq (${WITH_QTI},1)
+     ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libSNPE.so \
+     ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libhta.so \
+     ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libsnpe_dsp_domains_v2.so \
+-    ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libsnpe_dsp_domains_v3.so \
+     ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libSnpeHtpV69Stub.so \
+     ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libSnpeHtpV68Stub.so \
+     ${local_snpe_sdk_root}/lib/aarch64-android-clang8.0/libSnpeHtpPrepare.so \
+     ${local_snpe_sdk_root}/lib/dsp/libsnpe_dsp_v66_domains_v2_skel.so \
+-    ${local_snpe_sdk_root}/lib/dsp/libsnpe_dsp_v68_domains_v3_skel.so \
+     ${local_snpe_sdk_root}/lib/dsp/libSnpeHtpV69Skel.so \
+     ${local_snpe_sdk_root}/lib/dsp/libSnpeHtpV68Skel.so
+   backend_qti_android_target=//mobile_back_qti/cpp/backend_qti:libqtibackend.so \
+-                             //flutter/android/commonlibs:commonlibs
++                                 //flutter/android/commonlibs:commonlibs
++  ifeq ($(WITH_QTI),2)
++  	backend_qti_android_target+=--//mobile_back_qti/cpp/backend_qti:with_qti=${WITH_QTI}
++  endif
+   backend_qti_filename=libqtibackend
+ endif
+diff --git a/mobile_back_qti/make/qti_backend_targets.mk b/mobile_back_qti/make/qti_backend_targets.mk
+deleted file mode 100644
+index 278cc93..0000000
+--- a/mobile_back_qti/make/qti_backend_targets.mk
++++ /dev/null
+@@ -1,38 +0,0 @@
+-# Copyright (c) 2020-2021 Qualcomm Innovation Center, Inc. All rights reserved.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     http://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-##########################################################################
+-
+-.PHONY: libqtibackend
+-libqtibackend: android/builder-image
+-	# Building libqtibackend
+-	mkdir -p output/home/mlperf/cache && chmod 777 output/home/mlperf/cache
+-	mkdir -p output/mobile_back_qti
+-	docker run \
+-		${android_common_docker_flags} \
+-		--config android_arm64 //mobile_back_qti:qtibackend
+-	cp output/`readlink bazel-bin`/mobile_back_qti/cpp/backend_qti/libqtibackend.so output/mobile_back_qti/libtqtibackend.so
+-
+-# You need libasan5 installed to run allocator_test (sudo apt install libasan5)
+-qti_allocator_test: output/mobile_back_qti/test/allocator_test
+-output/mobile_back_qti/test/allocator_test: docker_image
+-	# Building QTI allocator_test
+-	mkdir -p output/home/mlperf/cache && chmod 777 output/home/mlperf/cache
+-	mkdir -p output/mobile_back_qti/test
+-	docker run \
+-		${android_native_docker_flags} --experimental_repo_remote_exec \
+-		--config=asan \
+-		//mobile_back_qti/cpp/backend_qti:allocator_test
+-	cp output/`readlink bazel-out`/k8-opt/bin/mobile_back_qti/cpp/backend_qti/allocator_test $@
+-	chmod 777 $@
+-
+diff --git a/mobile_back_qti/variables.bzl b/mobile_back_qti/variables.bzl
+index 5f3b988..1ff1501 100644
+--- a/mobile_back_qti/variables.bzl
++++ b/mobile_back_qti/variables.bzl
+@@ -1,5 +1,4 @@
+ """Find SNPE folder and pass it to bazel build config"""
+-
+ def _impl(repository_ctx):
+     if "windows" in repository_ctx.os.name:
+         fail("building with SNPE on Windows is not supported")

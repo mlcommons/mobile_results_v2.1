@@ -1,0 +1,7 @@
+{
+        "input_data_types": "FLOAT32",
+        "retraining": "none",
+        "starting_weights_filename": "https://github.com/mlcommons/mobile/blob/master/language/bert/models_and_code/checkpoints/quant/saved_model.pb",
+        "weight_data_types": "We transform the fp32 weights to int8",
+        "weight_transformations": "none"
+}

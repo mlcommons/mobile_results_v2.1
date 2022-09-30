@@ -1,0 +1,19 @@
+{
+        "System": "Asus ROG 6",
+        "Processor Name": "Qualcomm Snapdragon 8+ Gen 1",
+        
+        "CPU_Type_1": "1x Qualcomm Kryo(TM) Prime Core: 3.2 Ghz",
+        "CPU_Type_2": "3x Qualcomm Kryo(TM) Gold Cores: 2.75 Ghz",
+        "CPU_Type_3": "4x Qualcomm Kryo(TM) Silver Cores: 1.8 Ghz",
+        
+        "Graphics": "Qualcomm Adreno(TM) GPU",
+
+        "Accelerator_type_1": "Qualcomm Hexagon Processor: Hexagon Tensor Processor (HTP)",
+        
+        "DRAM": "2xLPDDR5 12GB",
+        
+        "OS Version": "32.2810.2207.134",
+        "TFlite Version": "2.8.0",
+        "TFLite delegate types": "none",
+        "vendor SDK": "Qualcomm Neural Processing SDK v1.65.0"
+}

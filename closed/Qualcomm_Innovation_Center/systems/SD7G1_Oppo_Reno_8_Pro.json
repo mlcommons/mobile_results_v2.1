@@ -1,0 +1,19 @@
+{
+        "System": "Oppo Reno 8 Pro",
+        "Processor Name": "Qualcomm Snapdragon 7 Gen 1",
+        
+        "CPU_Type_1": "1x Qualcomm Kryo(TM) Prime Core: 2.4 Ghz",
+        "CPU_Type_2": "3x Qualcomm Kryo(TM) Gold Cores: 2.36 Ghz",
+        "CPU_Type_2": "4x Qualcomm Kryo(TM) Silver Cores: 1.8 Ghz",
+        
+        "Graphics": "Qualcomm Adreno(TM) GPU",
+
+        "Accelerator_type_1": "Qualcomm Hexagon Processor: Hexagon Tensor Processor (HTP)",
+        
+        "DRAM": "2xLPDDR4 8GB",
+        
+        "OS Version": "ColorOS 12.1",
+        "TFlite Version": "2.8.0",
+        "TFLite delegate types": "none",
+        "vendor SDK": "Qualcomm Neural Processing SDK v1.65.0"
+}

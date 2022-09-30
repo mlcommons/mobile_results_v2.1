@@ -1,0 +1,7 @@
+{
+	"input_data_types": "int8",
+	 "retraining": "none",
+	 "starting_weights_filename": "https://github.com/mlcommons/mobile_open/blob/main/vision/mosaic/models_and_checkpoints/R4/mobile_segmenter_r4_argmax_f32.tflite",
+	 "weight_data_types": "int8",
+	 "weight_transformations": "code/mosaic/Calibration_process.adoc"
+ }

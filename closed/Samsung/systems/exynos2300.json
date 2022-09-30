@@ -1,0 +1,11 @@
+{
+        "division": "closed",
+        "status": "research",
+        "submitter": "Samsung Electronics",
+        "system_name": "Samsung Exynos 2300 ERD",
+        
+        "number_of_nodes": 1,
+        "host_processor_model_name": "exynos2300",
+        "sw_notes": ""
+}
+

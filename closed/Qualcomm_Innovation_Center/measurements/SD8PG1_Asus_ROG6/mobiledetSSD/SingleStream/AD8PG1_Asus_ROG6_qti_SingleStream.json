@@ -1,0 +1,7 @@
+{
+        "input_data_types": "UINT8",
+        "retraining": "none",
+        "starting_weights_filename": "https://github.com/mlcommons/mobile/raw/master/vision/mobiledet/uint8/export_inference_graph/frozen_inference_graph.pb",
+        "weight_data_types": "We transform the fp32 weights to int8",
+        "weight_transformations": "none"
+}

@@ -1,0 +1,7 @@
+{
+        "input_data_types": "UINT8",
+        "retraining": "none",
+        "starting_weights_filename": "https://github.com/mlcommons/mobile/blob/master/vision/mobilenet/models_and_code/checkpoints/float/edge_frozen_graph_v1x.pb",
+        "weight_data_types": "We transform the fp32 weights to int8",
+        "weight_transformations": "none"
+}

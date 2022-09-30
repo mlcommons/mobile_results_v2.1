@@ -1,0 +1,427 @@
+[
+  {
+    "meta": {
+      "uuid": "bc920868-e4ed-4cd3-b43b-163784fb12fa",
+      "upload_date": null
+    },
+    "results": [
+      {
+        "benchmark_id": "IC_tpu_uint8",
+        "benchmark_name": "Image Classification",
+        "loadgen_scenario": "SingleStream",
+        "backend_settings": {
+          "accelerator_code": "samsung npu",
+          "accelerator_desc": "NPU",
+          "configuration": "Samsung Exynos",
+          "model_path": "app:///MLPerf_sideload/ic_single_fence.nnc",
+          "batch_size": 0,
+          "extra_settings": [
+            {
+              "id": "num_threads",
+              "name": "Number of threads",
+              "value": "4",
+              "value_name": "4 threads"
+            },
+            {
+              "id": "configuration",
+              "name": "configuration",
+              "value": "Samsung's Exynos Neural Network SDK running Exynos mobile processor.",
+              "value_name": "Samsung Exynos"
+            },
+            {
+              "id": "share_results",
+              "name": "Share results",
+              "value": "0",
+              "value_name": "false"
+            },
+            {
+              "id": "cooldown",
+              "name": "Cooldown",
+              "value": "0",
+              "value_name": "false"
+            }
+          ]
+        },
+        "performance_run": {
+          "throughput": 3427.039889254335,
+          "accuracy": null,
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for classification",
+            "type": "IMAGENET",
+            "data_path": "app:///MLPerf_sideload/imagenet/img",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 59712.6875,
+          "measured_samples": 219232,
+          "start_datetime": "2022-08-31T19:01:28.658999Z",
+          "loadgen_validity": true
+        },
+        "accuracy_run": {
+          "throughput": null,
+          "accuracy": {
+            "value": 0.7538800239562988,
+            "string": "75.39%"
+          },
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for classification",
+            "type": "IMAGENET",
+            "data_path": "app:///MLPerf_sideload/imagenet/img",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 0.0,
+          "measured_samples": 0,
+          "start_datetime": "2022-08-31T19:02:31.087316Z",
+          "loadgen_validity": false
+        },
+        "min_duration_ms": 60000.0,
+        "min_samples": 1024,
+        "backend_info": {
+          "filename": "libsamsungbackend.so",
+          "vendor_name": "samsung",
+          "backend_name": "samsung",
+          "accelerator_name": "samsung npu"
+        }
+      },
+      {
+        "benchmark_id": "OD_uint8",
+        "benchmark_name": "Object Detection",
+        "loadgen_scenario": "SingleStream",
+        "backend_settings": {
+          "accelerator_code": "samsung npu",
+          "accelerator_desc": "NPU",
+          "configuration": "Samsung Exynos",
+          "model_path": "app:///MLPerf_sideload/od_fence.nnc",
+          "batch_size": 0,
+          "extra_settings": [
+            {
+              "id": "num_threads",
+              "name": "Number of threads",
+              "value": "4",
+              "value_name": "4 threads"
+            },
+            {
+              "id": "configuration",
+              "name": "configuration",
+              "value": "Samsung's Exynos Neural Network SDK running Exynos mobile processor.",
+              "value_name": "Samsung Exynos"
+            },
+            {
+              "id": "share_results",
+              "name": "Share results",
+              "value": "0",
+              "value_name": "false"
+            },
+            {
+              "id": "cooldown",
+              "name": "Cooldown",
+              "value": "0",
+              "value_name": "false"
+            }
+          ]
+        },
+        "performance_run": {
+          "throughput": 1748.0378197288487,
+          "accuracy": {
+            "value": 0.0,
+            "string": "0.0000 mAP"
+          },
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for detection",
+            "type": "COCO",
+            "data_path": "app:///MLPerf_sideload/coco/img",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 59828.59375,
+          "measured_samples": 106637,
+          "start_datetime": "2022-08-31T19:15:07.708465Z",
+          "loadgen_validity": true
+        },
+        "accuracy_run": {
+          "throughput": null,
+          "accuracy": {
+            "value": 0.27129828929901123,
+            "string": "0.2713 mAP"
+          },
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for detection",
+            "type": "COCO",
+            "data_path": "app:///MLPerf_sideload/coco/img",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 0.0,
+          "measured_samples": 0,
+          "start_datetime": "2022-08-31T19:16:10.862362Z",
+          "loadgen_validity": false
+        },
+        "min_duration_ms": 60000.0,
+        "min_samples": 1024,
+        "backend_info": {
+          "filename": "libsamsungbackend.so",
+          "vendor_name": "samsung",
+          "backend_name": "samsung",
+          "accelerator_name": "samsung npu"
+        }
+      },
+      {
+        "benchmark_id": "IS_uint8_mosaic",
+        "benchmark_name": "v2.0 Image Segmentation",
+        "loadgen_scenario": "SingleStream",
+        "backend_settings": {
+          "accelerator_code": "samsung npu",
+          "accelerator_desc": "NPU",
+          "configuration": "Samsung Exynos",
+          "model_path": "app:///MLPerf_sideload/sm_uint8_fence.nnc",
+          "batch_size": 0,
+          "extra_settings": [
+            {
+              "id": "num_threads",
+              "name": "Number of threads",
+              "value": "4",
+              "value_name": "4 threads"
+            },
+            {
+              "id": "configuration",
+              "name": "configuration",
+              "value": "Samsung's Exynos Neural Network SDK running Exynos mobile processor.",
+              "value_name": "Samsung Exynos"
+            },
+            {
+              "id": "share_results",
+              "name": "Share results",
+              "value": "0",
+              "value_name": "false"
+            },
+            {
+              "id": "cooldown",
+              "name": "Cooldown",
+              "value": "0",
+              "value_name": "false"
+            }
+          ]
+        },
+        "performance_run": {
+          "throughput": 940.6231501886211,
+          "accuracy": null,
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for segmentation",
+            "type": "ADE20K",
+            "data_path": "app:///MLPerf_sideload/ade20k/images",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 59902.51953125,
+          "measured_samples": 57329,
+          "start_datetime": "2022-08-31T19:22:05.170974Z",
+          "loadgen_validity": true
+        },
+        "accuracy_run": {
+          "throughput": null,
+          "accuracy": {
+            "value": 0.5756629109382629,
+            "string": "0.5757 mIoU"
+          },
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for segmentation",
+            "type": "ADE20K",
+            "data_path": "app:///MLPerf_sideload/ade20k/images",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 0.0,
+          "measured_samples": 0,
+          "start_datetime": "2022-08-31T19:23:08.931263Z",
+          "loadgen_validity": false
+        },
+        "min_duration_ms": 60000.0,
+        "min_samples": 1024,
+        "backend_info": {
+          "filename": "libsamsungbackend.so",
+          "vendor_name": "samsung",
+          "backend_name": "samsung",
+          "accelerator_name": "samsung npu"
+        }
+      },
+      {
+        "benchmark_id": "LU_float32",
+        "benchmark_name": "Language Understanding",
+        "loadgen_scenario": "SingleStream",
+        "backend_settings": {
+          "accelerator_code": "npu",
+          "accelerator_desc": "npu",
+          "configuration": "Samsung Exynos",
+          "model_path": "app:///MLPerf_sideload/mobile_bert_fence.nnc",
+          "batch_size": 0,
+          "extra_settings": [
+            {
+              "id": "num_threads",
+              "name": "Number of threads",
+              "value": "4",
+              "value_name": "4 threads"
+            },
+            {
+              "id": "configuration",
+              "name": "configuration",
+              "value": "Samsung's Exynos Neural Network SDK running Exynos mobile processor.",
+              "value_name": "Samsung Exynos"
+            },
+            {
+              "id": "share_results",
+              "name": "Share results",
+              "value": "0",
+              "value_name": "false"
+            },
+            {
+              "id": "cooldown",
+              "name": "Cooldown",
+              "value": "0",
+              "value_name": "false"
+            }
+          ]
+        },
+        "performance_run": {
+          "throughput": 109.21081972167997,
+          "accuracy": null,
+          "accuracy2": null,
+          "dataset": {
+            "name": "Squad V1.1 mini set",
+            "type": "SQUAD",
+            "data_path": "app:///MLPerf_sideload/squad/squad_eval_mini.tfrecord",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 59998.24609375,
+          "measured_samples": 6605,
+          "start_datetime": "2022-08-31T19:28:54.571677Z",
+          "loadgen_validity": true
+        },
+        "accuracy_run": {
+          "throughput": null,
+          "accuracy": {
+            "value": 0.9446666836738586,
+            "string": "94.4667"
+          },
+          "accuracy2": null,
+          "dataset": {
+            "name": "Squad V1.1 mini set",
+            "type": "SQUAD",
+            "data_path": "app:///MLPerf_sideload/squad/squad_eval_mini.tfrecord",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 0.0,
+          "measured_samples": 0,
+          "start_datetime": "2022-08-31T19:29:56.157520Z",
+          "loadgen_validity": false
+        },
+        "min_duration_ms": 60000.0,
+        "min_samples": 1024,
+        "backend_info": {
+          "filename": "libsamsungbackend.so",
+          "vendor_name": "samsung",
+          "backend_name": "samsung",
+          "accelerator_name": "samsung npu"
+        }
+      },
+      {
+        "benchmark_id": "IC_tpu_uint8_offline",
+        "benchmark_name": "Image Classification (Offline)",
+        "loadgen_scenario": "Offline",
+        "backend_settings": {
+          "accelerator_code": "samsung npu",
+          "accelerator_desc": "npu",
+          "configuration": "Samsung Exynos",
+          "model_path": "app:///MLPerf_sideload/ic_offline.nnc",
+          "batch_size": 8192,
+          "extra_settings": [
+            {
+              "id": "num_threads",
+              "name": "Number of threads",
+              "value": "4",
+              "value_name": "4 threads"
+            },
+            {
+              "id": "configuration",
+              "name": "configuration",
+              "value": "Samsung's Exynos Neural Network SDK running Exynos mobile processor.",
+              "value_name": "Samsung Exynos"
+            },
+            {
+              "id": "share_results",
+              "name": "Share results",
+              "value": "0",
+              "value_name": "false"
+            },
+            {
+              "id": "cooldown",
+              "name": "Cooldown",
+              "value": "0",
+              "value_name": "false"
+            }
+          ]
+        },
+        "performance_run": {
+          "throughput": 4981.974020544105,
+          "accuracy": null,
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for classification",
+            "type": "IMAGENET",
+            "data_path": "app:///MLPerf_sideload/imagenet/img",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 4932.984375,
+          "measured_samples": 24576,
+          "start_datetime": "2022-08-31T19:34:59.140583Z",
+          "loadgen_validity": true
+        },
+        "accuracy_run": {
+          "throughput": null,
+          "accuracy": {
+            "value": 0.755079984664917,
+            "string": "75.51%"
+          },
+          "accuracy2": null,
+          "dataset": {
+            "name": "Open images subset for classification",
+            "type": "IMAGENET",
+            "data_path": "app:///MLPerf_sideload/imagenet/img",
+            "groundtruth_path": ""
+          },
+          "measured_duration_ms": 0.0,
+          "measured_samples": 0,
+          "start_datetime": "2022-08-31T19:35:06.515576Z",
+          "loadgen_validity": false
+        },
+        "min_duration_ms": 0.0,
+        "min_samples": 24576,
+        "backend_info": {
+          "filename": "libsamsungbackend.so",
+          "vendor_name": "samsung",
+          "backend_name": "samsung",
+          "accelerator_name": "samsung npu"
+        }
+      }
+    ],
+    "environment_info": {
+      "manufacturer": "Samsung Electronics Co., Ltd.",
+      "model": "Full Android on ERD",
+      "os_name": "android",
+      "os_version": "Must use __system_property_read_callback() to read"
+    },
+    "build_info": {
+      "version": "2.0.0",
+      "build_number": "1",
+      "official_release_flag": false,
+      "dev_test_flag": false,
+      "backend_list": [
+        "libsamsungbackend",
+        "libtflitebackend"
+      ],
+      "git_branch": "submission-v2.1",
+      "git_commit": "fb04b9880424397e6c6909a8731b530532524c41",
+      "git_dirty_flag": true
+    }
+  }
+]
